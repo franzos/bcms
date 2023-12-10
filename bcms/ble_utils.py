@@ -5,8 +5,18 @@ import struct
 from datetime import datetime, timedelta
 from bleak import BleakClient, BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
+from typing import List
 
-from .data_types import BloodPressureData
+from .data_types import (
+    BloodPressureData,
+    DataType,
+    TemperatureData,
+    BatteryLevelData,
+    AdvertisementData,
+    HeartRateData,
+    PressureData,
+    AlertData,
+)
 
 
 log = logging.getLogger(__name__)
@@ -260,3 +270,111 @@ async def process_supported_device(
         log.debug("  Disconnecting from %s...", device.address)
         await client.disconnect()
         log.debug("  Disconnected from %s.", device.address)
+
+
+def iot_advertisement_data_callback_wrapper(
+    store_data_callback=None, track_device_callback=None
+):
+    def iot_advertisement_data_callback(
+        sender: BLEDevice, advertisement_data: AdvertisementData
+    ):
+        all_data: List[DataType] = []
+        TYPE_KEY_DICT = {
+            "HEART_RATE": "00002a37-0000-1000-8000-00805f9b34fb",
+            "PRESSURE": "00002a6d-0000-1000-8000-00805f9b34fb",
+            "TEMPERATURE": "00002a6e-0000-1000-8000-00805f9b34fb",
+            "BATTERY_LEVEL": "0000180f-0000-1000-8000-00805f9b34fb",
+            "ALERT": "00002a46-0000-1000-8000-00805f9b34fb",
+        }
+
+        if advertisement_data:
+            # print(advertisement_data)
+            for data_type, uuid in TYPE_KEY_DICT.items():
+                # starts with ...
+                match = False
+                for key in advertisement_data.service_data.keys():
+                    if key.startswith(uuid):
+                        match = True
+                        break
+
+                if match:
+
+                    def signed():
+                        return int.from_bytes(
+                            advertisement_data.service_data[uuid],
+                            byteorder="little",
+                            signed=True,
+                        )
+
+                    def unsigned():
+                        return int.from_bytes(
+                            advertisement_data.service_data[uuid],
+                            byteorder="little",
+                            signed=False,
+                        )
+
+                    def bytes_to_utf8():
+                        try:
+                            return advertisement_data.service_data[uuid].decode("utf-8")
+                        except UnicodeDecodeError as err:
+                            log.error(
+                                "Failed to decode bytes to utf-8: %s",
+                                err,
+                                exc_info=True,
+                            )
+                            return None
+
+                    data = None
+                    if data_type == "HEART_RATE":
+                        data_value = signed()
+                        log.debug(
+                            "  - BLE Found %s: Heart rate data: %s", uuid, data_value
+                        )
+                        data = HeartRateData(
+                            {"rate": data_value}, sender.address, time.time()
+                        )
+                    elif data_type == "PRESSURE":
+                        data_value = unsigned()
+                        log.debug(
+                            "  - BLE Found %s: Pressure data: %s", uuid, data_value
+                        )
+                        data = PressureData(
+                            {"level": data_value}, sender.address, time.time()
+                        )
+                    elif data_type == "TEMPERATURE":
+                        data_value = signed()
+                        log.debug(
+                            "  - BLE Found %s: Temperature data: %s", uuid, data_value
+                        )
+                        data = TemperatureData(
+                            {"level": data_value}, sender.address, time.time()
+                        )
+                    elif data_type == "BATTERY_LEVEL":
+                        data_value = signed()
+                        log.debug(
+                            "  - BLE Found %s: Battery level data: %s", uuid, data_value
+                        )
+                        data = BatteryLevelData(
+                            {"level": data_value}, sender.address, time.time()
+                        )
+                    elif data_type == "ALERT":
+                        data_value = bytes_to_utf8()
+                        log.debug("  - BLE Found %s: Alert data: %s", uuid, data_value)
+                        data = AlertData(
+                            {"id": data_value}, sender.address, time.time()
+                        )
+                    all_data.append(data)
+
+        # Check for manufacturer data
+        # if advertisement_data.manufacturer_data:
+        #     print(f"  Manufacturer data: {advertisement_data.manufacturer_data}")
+
+        if len(all_data) > 0:
+            if store_data_callback is not None:
+                for d in all_data:
+                    store_data_callback(d)
+
+        if track_device_callback is not None:
+            track_device_callback(sender)
+
+    return iot_advertisement_data_callback

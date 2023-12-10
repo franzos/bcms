@@ -9,7 +9,7 @@ from .bootstrap import (
     remove_device,
     async_queue,
 )
-from .devices_db import BCMSDeviceInfo
+from .devices_classes import BCMSDeviceInfo
 from .config import pimstore_capnp, device_capnp, working_mode_capnp
 from .queue import make_pair_request, make_unpair_request
 

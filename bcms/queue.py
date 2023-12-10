@@ -17,7 +17,7 @@ class AsyncQueue:
     def from_class(self, item):
         self.queue.append(item)
 
-    def get(self):
+    def get(self) -> AsyncQueueItem:
         return self.queue.pop(0)
 
     def is_empty(self):

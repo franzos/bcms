@@ -8,11 +8,21 @@
 
 ## Usage
 
+### Daemon
+
 Run the daemon:
 
 ```bash
 bcms-daemon --debug True
 ```
+
+All arguments:
+
+- `--debug`: Enable debug logging
+- `--username USERNAME`: username for notifications
+- `--use_device_identity`: use device identity for authentication (and submit data to API)
+
+### CLI
 
 Run the CLI:
 

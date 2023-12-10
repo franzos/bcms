@@ -6,7 +6,8 @@ from bleak.backends.device import BLEDevice
 from bleak import BleakScanner
 from vhh_bluetooth_terminal_assigned_user import send_alert
 
-from .ble_utils import process_supported_device
+from bcms.data_store import limit_iot_data_sample_rate
+
 from .log import *
 from .cli import parse_cli_params
 
@@ -16,15 +17,14 @@ from .config import (
     SUPPORTED_DEVICES,
     WELL_KNOWN_SERVICE_IDENTIFIER,
 )
-from .devices_db import BCMSDeviceInfo
+from .devices_classes import BCMSDeviceInfo, BCMSDeviceInfoWithLastSeen
 from .data_types import (
-    dump_iot_data_for_api_submission,
-    iot_advertisement_data_callback_wrapper,
     DataType,
 )
+from .data_store import dump_iot_data_for_api_submission
+from .ble_utils import process_supported_device, iot_advertisement_data_callback_wrapper
 from .rpc_server import new_rpc_connection
 from .bootstrap import (
-    devices_db,
     devices_mem,
     devices_data,
     backend_api,
@@ -41,31 +41,13 @@ async def device_discovery_loop(notify_callback=None):
     """Discover devices and store BLE data"""
 
     def store_data(data: DataType):
-        if devices_db.exists(data.address):
+        if devices_mem.exists(data.address):
             devices_data.add(data)
 
     def track_device(device: BLEDevice):
-        exists_db = devices_db.exists(device.address)
         exists_mem = devices_mem.get(device.address)
-        if exists_db is not None:
-            if exists_mem is not None:
-                devices_mem.replace(
-                    BCMSDeviceInfo(
-                        address=device.address,
-                        name=device.name,
-                        approved=exists_mem.approved,
-                        paired=exists_mem.paired,
-                    )
-                )
-            else:
-                devices_mem.add(
-                    BCMSDeviceInfo(
-                        address=device.address,
-                        name=device.name,
-                        approved=exists_db.approved,
-                        paired=exists_db.paired,
-                    )
-                )
+        if exists_mem is not None:
+            devices_mem.update_last_seen(device.address)
         else:
             devices_mem.add(
                 BCMSDeviceInfo(
@@ -131,6 +113,7 @@ async def api_data_submission_loop():
     """Submit data to API every 10 seconds"""
     last_submission = None
     while True:
+        registered_devices = devices_mem.get_registered()
         if backend_api and backend_api.is_loaded:
             if last_submission is None:
                 last_submissions = []
@@ -139,6 +122,9 @@ async def api_data_submission_loop():
                 known_devices = devices_mem.get_all()
                 for device in known_devices:
                     if device.approved is True:
+                        if device.id is None:
+                            continue
+
                         last_data = backend_api.last_iot_device_data_submission(
                             device.id
                         )
@@ -166,7 +152,10 @@ async def api_data_submission_loop():
                     log.debug("   Found %s entries", len(data))
                     filtered_data.extend(data)
 
-                formatted_data = dump_iot_data_for_api_submission(filtered_data)
+                sample_data = limit_iot_data_sample_rate(filtered_data)
+                formatted_data = dump_iot_data_for_api_submission(
+                    sample_data, registered_devices
+                )
                 backend_api.submit_iot_data(formatted_data)
 
                 last_submission = to_time
@@ -177,7 +166,12 @@ async def api_data_submission_loop():
                 log.debug("=> Fetching data from %s to %s", last_submission, to_time)
                 data = devices_data.get(from_time=last_submission, to_time=to_time)
                 log.debug("   Found %s entries", len(data))
-                formatted_data = dump_iot_data_for_api_submission(data)
+                sample_data = limit_iot_data_sample_rate(data)
+                log.debug("   Found %s entries - SAMPLED", len(sample_data))
+                formatted_data = dump_iot_data_for_api_submission(
+                    sample_data, registered_devices
+                )
+                print(formatted_data)
                 backend_api.submit_iot_data(formatted_data)
 
                 last_submission = to_time
@@ -190,7 +184,14 @@ async def api_data_submission_loop():
             to_time = round(time.time())
             log.info("=> Fetching data from %s to %s", from_time, to_time)
             data = devices_data.get(from_time=from_time, to_time=to_time)
-            log.info("=> Submitting %s entries to API", len(data))
+            log.debug("   Found %s entries", len(data))
+            sample_data = limit_iot_data_sample_rate(data)
+            log.debug("   Found %s entries - SAMPLED", len(sample_data))
+            formatted_data = dump_iot_data_for_api_submission(
+                sample_data, registered_devices
+            )
+            print(formatted_data)
+            log.info("=> Submitting %s entries to API", len(sample_data))
             last_submission = to_time
 
         await asyncio.sleep(10.0)
@@ -199,11 +200,22 @@ async def api_data_submission_loop():
 async def process_async_queue(notify_callback=None):
     """Process async queue"""
 
-    def success_callback(address: str, name: str = None):
+    def pairing_success_callback(address: str, name: str = None):
         log.debug("Pair success %s", address)
         if backend_api.is_loaded:
             try:
-                backend_api.create_iot_device_if_not_exists(address)
+                result = backend_api.create_iot_device_if_not_exists(address)
+                if result and result.id:
+                    devices_mem.replace(
+                        BCMSDeviceInfo(
+                            address=address,
+                            name=name,
+                            approved=True,
+                            paired=True,
+                            id=result.id,
+                            is_registered=True,
+                        )
+                    )
             except Exception as e:
                 log.error("Failed to create iot device %s: %s", address, e)
 
@@ -212,7 +224,7 @@ async def process_async_queue(notify_callback=None):
         if item.command == "pair":
             try:
                 await pair_device(
-                    item.args["address"], success_callback, notify_callback
+                    item.args["address"], pairing_success_callback, notify_callback
                 )
             except Exception as err:
                 log.error("Unknown pair err: %s", err)
@@ -221,6 +233,54 @@ async def process_async_queue(notify_callback=None):
                 await unpair_device(item.args["address"], notify_callback)
             except Exception as err:
                 log.error("Unknown unpair err: %s", err)
+
+
+async def register_devices_loop():
+    while True:
+        log.debug("=> Registering devices")
+        if backend_api.is_loaded:
+            devices = devices_mem.get_approved_or_paired()
+
+            # sleep 2s, in case the device was just added, and another registration is ongoing
+            # better approach: add created_at and use that to "delay"
+            await asyncio.sleep(2)
+            for device in devices:
+                log.debug("Checking if device is registered: %s", device.address)
+                try:
+                    result = backend_api.create_iot_device_if_not_exists(device.address)
+                    print("RESULT", result)
+                    if result and result.id:
+                        if result.id == device.id and device.is_registered is True:
+                            # device is already registered
+                            continue
+                        devices_mem.replace(
+                            BCMSDeviceInfo(
+                                address=device.address,
+                                name=device.name,
+                                approved=True,
+                                paired=device.paired,
+                                id=result.id,
+                                is_registered=True,
+                            )
+                        )
+                    else:
+                        # device is not registered
+                        devices_mem.replace(
+                            BCMSDeviceInfo(
+                                address=device.address,
+                                name=device.name,
+                                approved=True,
+                                paired=device.paired,
+                                id=None,
+                                is_registered=False,
+                            )
+                        )
+                except Exception as e:
+                    log.error(
+                        "Failed to check / register device %s: %s", device.address, e
+                    )
+
+        await asyncio.sleep(60)
 
 
 async def process(
@@ -239,6 +299,7 @@ async def process(
         cache_clear_old_data_loop(),
         rpc_server_loop(),
         api_data_submission_loop(),
+        register_devices_loop(),
     )
 
 

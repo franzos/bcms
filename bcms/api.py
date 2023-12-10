@@ -9,6 +9,7 @@ from vhh_bluetooth_terminal_assigned_user import (
     make_bearer_headers,
 )
 
+from .utils import add_scheme_from_auth_host
 from .config import WELL_KNOWN_SERVICE_IDENTIFIER
 
 
@@ -20,7 +21,8 @@ class IotDeviceExistsResponse:
     """Response for iot_device_exists"""
 
     exists: bool
-    rememberDevice: bool
+    remember_device: bool = False
+    id: str = None
 
 
 @dataclass
@@ -39,19 +41,28 @@ class IotDeviceCreateResponse:
 
 
 class BackendAPI:
-    is_loaded = False
+    is_loaded: bool
 
-    auth_host = Union[None, str]
-    app_host = Union[None, str]
-    identifier = Union[None, str]
-    device_id = Union[None, str]
+    auth_host: Union[None, str]
+    app_host: Union[None, str]
+    identifier: Union[None, str]
+    device_id: Union[None, str]
 
-    well_known = Union[None, dict]
-    access_token = Union[None, str]
-    access_token_expires_at = Union[None, int]
+    well_known: Union[None, dict]
+    access_token: Union[None, str]
+    access_token_expires_at: Union[None, int]
 
     def __init__(self) -> None:
         self.is_loaded = False
+
+        self.auth_host = None
+        self.app_host = None
+        self.identifier = None
+        self.device_id = None
+
+        self.well_known = None
+        self.access_token = None
+        self.access_token_expires_at = None
 
     def load(self, identifier: str = WELL_KNOWN_SERVICE_IDENTIFIER):
         from px_device_identity import is_superuser_or_quit
@@ -86,14 +97,16 @@ class BackendAPI:
         device = Device()
         well_known_list = get_well_known(device)
         well_known = get_well_known_by_identifier(
-            well_known=well_known_list, identifier=self.identifier
+            well_known=well_known_list["data"], identifier=self.identifier
         )
 
         if well_known is None:
             log.warn("No well known found for %s" % self.identifier)
             return None
 
-        self.app_host = well_known["data"].hostname
+        self.app_host = add_scheme_from_auth_host(
+            well_known["data"].hostname, device.properties.host
+        )
 
     def submit_iot_data(self, data: list):
         """Submit iot data to server"""
@@ -102,11 +115,12 @@ class BackendAPI:
             return None
         self.renew_token()
 
+        log.debug("Submitting iot data %s", data)
         url = f"{self.app_host}/api/iot-devices/data/submit"
         res = requests.post(
-            url, json=data, headers=make_bearer_headers(self.access_token)
+            url, json={"data": data}, headers=make_bearer_headers(self.access_token)
         )
-        print(res.json())
+        res.raise_for_status()
 
     def iot_device_exists(self, address: str):
         """Check if iot device exists"""
@@ -115,17 +129,34 @@ class BackendAPI:
             return None
         self.renew_token()
 
-        url = f"{self.auth_host}/api/iot-devices/exists"
+        log.debug("Checking if iot device exists %s", address)
+        url = f"{self.app_host}/api/iot-devices/exists"
         res = requests.post(
             url,
             json={"hardwareIdentifier": address},
             headers=make_bearer_headers(self.access_token),
         )
-        return IotDeviceExistsResponse(**res.json())
+        res.raise_for_status()
+        data = res.json()
+
+        if data["exists"]:
+            return IotDeviceExistsResponse(
+                exists=data["exists"],
+                remember_device=data["rememberDevice"],
+                id=data["id"],
+            )
+        else:
+            return IotDeviceExistsResponse(exists=data["exists"])
 
     def create_iot_device(self, address: str):
         """Create iot device"""
-        url = f"{self.auth_host}/api/iot-devices"
+        if self.app_host is None:
+            log.warn("No app host found")
+            return None
+        self.renew_token()
+
+        log.debug("Creating iot device %s", address)
+        url = f"{self.app_host}/api/iot-devices"
         data = {
             "hardwareIdentifier": address,
             "model": "generic",
@@ -136,18 +167,37 @@ class BackendAPI:
         res = requests.post(
             url, json=data, headers=make_bearer_headers(self.access_token)
         )
-        return res.json()
+        res.raise_for_status()
+        data = res.json()
+
+        return IotDeviceCreateResponse(
+            hardwareIdentifier=data["hardwareIdentifier"],
+            model=data["model"],
+            connectionType=data["connectionType"],
+            connectionMeta=data["connectionMeta"],
+            supportedDataTypes=data["supportedDataTypes"],
+            id=data["id"],
+            createdAt=data["createdAt"],
+            modifiedAt=data["modifiedAt"],
+            revision=data["revision"],
+        )
 
     def create_iot_device_if_not_exists(self, address: str):
         """Create iot device if not exists"""
         exists = self.iot_device_exists(address)
+        log.debug("Iot device exists %s", exists)
         if exists.exists:
             return exists
         else:
             return self.create_iot_device(address)
 
     def last_iot_device_data_submission(self, iot_device_id: str) -> int:
+        if self.app_host is None:
+            log.warn("No app host found")
+            return None
+        self.renew_token()
+
         """Get last iot device data submission timestamp"""
-        url = f"{self.auth_host}/api/iot-devices/{iot_device_id}/last-data-submission"
+        url = f"{self.app_host}/api/iot-devices/{iot_device_id}/last-data-submission"
         res = requests.get(url, headers=make_bearer_headers(self.access_token))
         return res.json()

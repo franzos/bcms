@@ -1,7 +1,10 @@
 import sqlite3
 import json
 from datetime import datetime
+from typing import List
+import logging
 
+from .devices_classes import BCMSDeviceInfoWithLastSeen
 from .data_types import (
     DataType,
     BatteryLevelData,
@@ -11,6 +14,9 @@ from .data_types import (
     BloodPressureData,
     AlertData,
 )
+
+
+log = logging.getLogger(__name__)
 
 
 class BCMSDeviceDataDB:
@@ -81,7 +87,7 @@ class BCMSDeviceDataDB:
             elif type == "AlertData":
                 data_objects.append(AlertData(json.loads(data), address, timestamp))
             else:
-                data_objects.append(DataType(json.loads(data), address, timestamp))
+                raise Exception(f"Unknown data type: {type}")
 
         return data_objects
 
@@ -94,3 +100,89 @@ class BCMSDeviceDataDB:
     def clear(self):
         self.conn.execute("DELETE FROM data")
         self.conn.commit()
+
+
+def dump_iot_data_for_api_submission(
+    input_data: List[DataType], registered_devices: list[BCMSDeviceInfoWithLastSeen]
+):
+    registered_addresses = [d.address for d in registered_devices]
+
+    # sort data by device
+    data_by_device = {}
+    for d in input_data:
+        # check if address is registered
+        if d.address not in registered_addresses:
+            log.debug("Skipping unregistered device %s", d.address)
+            continue
+
+        if d.address not in data_by_device:
+            data_by_device[d.address] = []
+        data_by_device[d.address].append(d)
+
+    # sort data by device and type
+    data_by_device_and_type = []
+
+    # loop through data by device
+    for address, data in data_by_device.items():
+        # get device ID for later assignment
+        device_id = None
+        for d in registered_devices:
+            if d.address == address:
+                device_id = d.id
+                break
+
+        data_by_type = {}
+        for d in data:
+            if d.name not in data_by_type:
+                data_by_type[d.name] = []
+
+            data_by_type[d.name].append({"timestamp": d.timestamp, "data": d.data})
+        for type, data in data_by_type.items():
+            data_by_device_and_type.append(
+                {"iotDeviceId": device_id, "dataType": type, "data": data}
+            )
+
+    return data_by_device_and_type
+
+
+def limit_iot_data_sample_rate(
+    data: List[DataType], samples_every_seconds=2
+) -> List[DataType]:
+    """
+    Limit the number of samples per second, per type and address
+    - for ex. samples_every_seconds=2 means that only one sample per type and address, every 2 seconds, will be kept
+    """
+    if len(data) == 0:
+        return data
+
+    # sort data by device
+    data_by_device = {}
+    for d in data:
+        if d.address not in data_by_device:
+            data_by_device[d.address] = []
+        data_by_device[d.address].append(d)
+
+    # sort data by device and type
+    data_by_device_and_type = {}
+    for address, data in data_by_device.items():
+        data_by_type = {}
+        for d in data:
+            if d.__class__.__name__ not in data_by_type:
+                data_by_type[d.__class__.__name__] = []
+            data_by_type[d.__class__.__name__].append(d)
+        data_by_device_and_type[address] = data_by_type
+
+    # filter data
+    filtered_data = []
+    for address, data_by_type in data_by_device_and_type.items():
+        for type, data in data_by_type.items():
+            last_timestamp = None
+            for d in data:
+                if (
+                    last_timestamp is None
+                    or d.timestamp - last_timestamp > samples_every_seconds
+                ):
+                    filtered_data.append(d)
+                    last_timestamp = d.timestamp
+
+    return filtered_data

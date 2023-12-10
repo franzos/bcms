@@ -1,7 +1,7 @@
 import dbus
 import logging
 
-from .devices_db import BCMSDeviceInfo
+from .devices_classes import BCMSDeviceInfo
 
 
 log = logging.getLogger(__name__)
