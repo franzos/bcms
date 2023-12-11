@@ -85,7 +85,6 @@ class BCMDeviceMemory:
                     )
                 else:
                     log.debug("Skipping device %s", device.address)
-                    print(device)
 
             json.dump(data, file)
 
@@ -129,7 +128,7 @@ class BCMDeviceMemory:
             if exists.paired or exists.approved:
                 self.save()
 
-    def get(self, address: int) -> Union[BCMSDeviceInfoWithLastSeen, None]:
+    def get(self, address: str) -> Union[BCMSDeviceInfoWithLastSeen, None]:
         for device in self.devices:
             if device.address == address:
                 return device
@@ -144,6 +143,4 @@ class BCMDeviceMemory:
     def get_approved_or_paired(
         self,
     ) -> list[BCMSDeviceInfoWithLastSeen]:
-        for device in self.devices:
-            print(device)
         return [x for x in self.devices if (x.approved or x.paired)]

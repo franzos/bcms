@@ -1,5 +1,6 @@
 from bleak import BleakClient
 import logging
+import subprocess
 
 from .queue import AsyncQueue
 from .paired_devices import get_paired_devices
@@ -55,7 +56,6 @@ def list_devices(max_age_s=60, only_approved=False):
             filtered_devices.append(device)
         log.debug(" - Skipping (last_seen) %s", device.address)
 
-    print("Filtered devices", len(filtered_devices))
     return filtered_devices
 
 
@@ -180,21 +180,59 @@ async def pair_device(device_address: str, success_callback=None, notify_callbac
                 )
 
 
+async def unpair_subprocess(device_address: str) -> bool:
+    # bluetoothctl remove 00:09:1F:8A:BC:21
+    result = subprocess.run(
+        ["bluetoothctl", "remove", device_address], capture_output=True, check=False
+    )
+    # bluetoothctl untrust 00:09:1F:8A:BC:21
+    subprocess.run(["bluetoothctl", "untrust", device_address], check=False)
+
+    if result.returncode == 0:
+        return True
+    else:
+        return False
+
+
 async def unpair_device(device_address: str, notify_callback=None):
     """Unpair a device"""
-    async with BleakClient(device_address) as client:
-        log.debug("=> Requesting to unpair %s", device_address)
+    log.info("=> Requesting to unpair %s", device_address)
 
-        exists = devices_mem.get(device_address)
+    exists = devices_mem.get(device_address)
 
-        if not exists:
-            raise Exception("Device not found")
+    if exists is None:
+        raise Exception("Device not found")
 
-        # if exists and not exists.paired or exists_db and not exists_db.paired:
-        #     raise Exception("Cannot unpair unpaired device.")
+    try:
+        async with BleakClient(device_address) as client:
+            # if exists and not exists.paired or exists_db and not exists_db.paired:
+            #     raise Exception("Cannot unpair unpaired device.")
 
-        success = await client.unpair()
-        if success:
+            success = await client.unpair()
+
+            if success:
+                log.debug("   Unpaired %s", device_address)
+                devices_mem.remove(device_address)
+                log.debug("   Removed %s", device_address)
+
+                if notify_callback:
+                    notify_callback(
+                        "Unpaired successfully", f"Unpaired with {device_address}", 5000
+                    )
+            else:
+                log.error("   Failed to unpair %s", device_address)
+                if notify_callback:
+                    notify_callback(
+                        "Failed to unpair",
+                        f"Failed to unpair with {device_address}",
+                        5000,
+                    )
+    except Exception as e:
+        # Try an alternative method
+        log.error("   ######### Failed to unpair %s: %s", device_address, e)
+        log.info("   Trying to unpair %s with bluetoothctl", device_address)
+        success_manual = await unpair_subprocess(device_address)
+        if success_manual:
             log.debug("   Unpaired %s", device_address)
             devices_mem.remove(device_address)
             log.debug("   Removed %s", device_address)
@@ -204,11 +242,14 @@ async def unpair_device(device_address: str, notify_callback=None):
                     "Unpaired successfully", f"Unpaired with {device_address}", 5000
                 )
         else:
-            log.error("   Failed to unpair %s", device_address)
+            log.error("   Failed to unpair %s: %s", device_address, e)
             if notify_callback:
                 notify_callback(
-                    "Failed to unpair", f"Failed to unpair with {device_address}", 5000
+                    "Failed to unpair",
+                    f"Failed to unpair with {device_address}",
+                    5000,
                 )
+            raise e
 
 
 def is_paired_device(device_address: str):

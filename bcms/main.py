@@ -15,7 +15,6 @@ from .config import (
     RPC_ADDRESS,
     RPC_PORT,
     SUPPORTED_DEVICES,
-    WELL_KNOWN_SERVICE_IDENTIFIER,
 )
 from .devices_classes import BCMSDeviceInfo, BCMSDeviceInfoWithLastSeen
 from .data_types import (
@@ -46,7 +45,18 @@ async def device_discovery_loop(notify_callback=None):
 
     def track_device(device: BLEDevice):
         exists_mem = devices_mem.get(device.address)
-        if exists_mem is not None:
+        if exists_mem is not None and exists_mem.name is not device.name:
+            devices_mem.replace(
+                BCMSDeviceInfo(
+                    address=device.address,
+                    name=device.name,
+                    approved=exists_mem.approved,
+                    paired=exists_mem.paired,
+                    id=exists_mem.id,
+                    is_registered=exists_mem.is_registered,
+                )
+            )
+        elif exists_mem is not None:
             devices_mem.update_last_seen(device.address)
         else:
             devices_mem.add(
@@ -153,9 +163,11 @@ async def api_data_submission_loop():
                     filtered_data.extend(data)
 
                 sample_data = limit_iot_data_sample_rate(filtered_data)
+                log.debug("   Found %s entries - SAMPLED", len(sample_data))
                 formatted_data = dump_iot_data_for_api_submission(
                     sample_data, registered_devices
                 )
+                log.info("=> Submitting %s entries to API", len(sample_data))
                 backend_api.submit_iot_data(formatted_data)
 
                 last_submission = to_time
@@ -171,7 +183,7 @@ async def api_data_submission_loop():
                 formatted_data = dump_iot_data_for_api_submission(
                     sample_data, registered_devices
                 )
-                print(formatted_data)
+                log.info("=> Submitting %s entries to API", len(sample_data))
                 backend_api.submit_iot_data(formatted_data)
 
                 last_submission = to_time
@@ -190,8 +202,7 @@ async def api_data_submission_loop():
             formatted_data = dump_iot_data_for_api_submission(
                 sample_data, registered_devices
             )
-            print(formatted_data)
-            log.info("=> Submitting %s entries to API", len(sample_data))
+            log.info("=> [DEMO] Submitting %s entries to API", len(sample_data))
             last_submission = to_time
 
         await asyncio.sleep(10.0)
@@ -222,6 +233,7 @@ async def process_async_queue(notify_callback=None):
     if len(async_queue) > 0:
         item = async_queue.get()
         if item.command == "pair":
+            log.info("Pairing %s", item.args["address"])
             try:
                 await pair_device(
                     item.args["address"], pairing_success_callback, notify_callback
@@ -229,6 +241,7 @@ async def process_async_queue(notify_callback=None):
             except Exception as err:
                 log.error("Unknown pair err: %s", err)
         elif item.command == "unpair":
+            log.info("Unpairing %s", item.args["address"])
             try:
                 await unpair_device(item.args["address"], notify_callback)
             except Exception as err:
@@ -248,8 +261,14 @@ async def register_devices_loop():
                 log.debug("Checking if device is registered: %s", device.address)
                 try:
                     result = backend_api.create_iot_device_if_not_exists(device.address)
-                    print("RESULT", result)
-                    if result and result.id:
+                    log.debug("Result: %s", result)
+
+                    if (
+                        result
+                        and result.exists
+                        and result.remember_device is True
+                        and result.id
+                    ):
                         if result.id == device.id and device.is_registered is True:
                             # device is already registered
                             continue
@@ -285,10 +304,11 @@ async def register_devices_loop():
 
 async def process(
     use_device_identity=False,
+    application_identifier=None,
     username=None,
 ):
     if use_device_identity:
-        backend_api.load(WELL_KNOWN_SERVICE_IDENTIFIER)
+        backend_api.load(application_identifier)
 
     def notify_callback(title: str, message: str, timeout: int = 5000):
         log.debug("Notify callback")
@@ -313,6 +333,9 @@ def main():
     use_device_identity = (
         "use_device_identity" in params and params["use_device_identity"] or False
     )
+    application_identifier = (
+        "application_identifier" in params and params["application_identifier"] or None
+    )
 
     if debug:
         ch.setLevel(logging.DEBUG)
@@ -320,6 +343,7 @@ def main():
     asyncio.run(
         process(
             use_device_identity=use_device_identity,
+            application_identifier=application_identifier,
             username=username,
         )
     )

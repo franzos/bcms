@@ -5,12 +5,11 @@ import os
 
 RPC_ADDRESS = "127.0.0.1"
 RPC_PORT = 4567
-WELL_KNOWN_SERVICE_IDENTIFIER = "vhh-server"
 
 BLOOD_PRESSURE_DATA_FILE = "/tmp/bluetooth-client-manager-service-data.txt"
 
 KNOWN_DEVICES_FILE = os.path.expanduser(
-    "~/.local/share/bluetooth-client-manager-service/devices.json"
+    "~/.local/share/bluetooth-client-manager-service/device.json"
 )
 
 CAPNP_INTERFACE = pkg_resources.resource_filename(__name__, "rpc/bcms.capnp")

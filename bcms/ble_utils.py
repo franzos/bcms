@@ -126,6 +126,7 @@ async def update_device_time(
             await client.write_gatt_char(
                 "00002a08-0000-1000-8000-00805f9b34fb", new_time
             )
+            log.info("  Updated time on %s (%s)", device.name, device.address)
             if notify_callback:
                 notify_callback(
                     "Time updated",
@@ -154,7 +155,7 @@ async def get_device_data(
     notify_callback=None,
     store_data_callback=None,
 ):
-    log.debug("  => Subscribing to %s BPM service...", client.address)
+    log.info("  => Subscribing to %s BPM service...", client.address)
     if notify_callback:
         notify_callback(
             "BPM service",
@@ -165,6 +166,7 @@ async def get_device_data(
         def create_received_data_callback(
             sender: BleakGATTCharacteristic, data: bytearray
         ):
+            log.info("  Received data from %s BPM service.", client.address)
             decoded = decode_data(data, ["100"])
 
             if store_data_callback:
@@ -288,7 +290,6 @@ def iot_advertisement_data_callback_wrapper(
         }
 
         if advertisement_data:
-            # print(advertisement_data)
             for data_type, uuid in TYPE_KEY_DICT.items():
                 # starts with ...
                 match = False

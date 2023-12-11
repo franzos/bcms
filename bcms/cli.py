@@ -39,6 +39,13 @@ def parse_cli_params():
         help="Use device identity for authentication",
     )
     parser.add_argument(
+        "-appid",
+        "--application_identifier",
+        type=str,
+        default=None,
+        help="Identify remote server to register ble devices with and log to. To be used with --use_device_identity",
+    )
+    parser.add_argument(
         "-d",
         "--debug",
         type=bool,
@@ -67,6 +74,9 @@ def parse_cli_params():
 
     if args.use_device_identity:
         operation_args["use_device_identity"] = True
+
+    if args.application_identifier:
+        operation_args["application_identifier"] = args.application_identifier
 
     if args.debug:
         operation_args["debug"] = True
