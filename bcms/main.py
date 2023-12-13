@@ -15,8 +15,11 @@ from .config import (
     RPC_ADDRESS,
     RPC_PORT,
     SUPPORTED_DEVICES,
+    BLUETOOTH_SCAN_INTERVAL,
+    CLEAR_IOT_DATA_CACHE_INTERVAL,
+    DATA_SUBMISSION_INTERVAL,
 )
-from .devices_classes import BCMSDeviceInfo, BCMSDeviceInfoWithLastSeen
+from .devices_classes import BCMSDeviceInfo
 from .data_types import (
     DataType,
 )
@@ -72,12 +75,20 @@ async def device_discovery_loop(notify_callback=None):
         """Connect to device to update time and retrieve data"""
         for supported in SUPPORTED_DEVICES:
             if device.name.startswith(supported):
-                log.debug("=> Connecting to %s", device)
-                await process_supported_device(
-                    device,
-                    notify_callback=notify_callback,
-                    store_data_callback=store_data,
-                )
+                log.info("=> Connecting to %s", device)
+                notify_callback("Connecting", f"Connecting to {device.name}", 10000)
+                try:
+                    await process_supported_device(
+                        device,
+                        notify_callback=notify_callback,
+                        store_data_callback=store_data,
+                    )
+                except Exception as err:
+                    log.error("Failed with error on %s: %s", device.name, err)
+                    if notify_callback:
+                        notify_callback(
+                            "Error", f"Failed with error on {device.name}: {err}", 10000
+                        )
                 break
 
     while True:
@@ -86,20 +97,22 @@ async def device_discovery_loop(notify_callback=None):
                 store_data_callback=store_data, track_device_callback=track_device
             )
         )
+
         log.debug("=> Starting BLE scan")
         await scanner.start()
-        await asyncio.sleep(10.0)  # scan for 10 seconds
+        await asyncio.sleep(BLUETOOTH_SCAN_INTERVAL)
         await scanner.stop()
 
         discovered = scanner.discovered_devices
-
-        await process_async_queue(notify_callback=notify_callback)
 
         # Connect to devices
         for device in discovered:
             in_memory = devices_mem.get(device.address)
             if in_memory and in_memory.paired is True:
                 await connect_device(device)
+
+        await asyncio.sleep(1)
+        await process_async_queue(notify_callback=notify_callback)
 
 
 async def rpc_server_loop():
@@ -111,7 +124,9 @@ async def rpc_server_loop():
         await server.serve_forever()
 
 
-async def cache_clear_old_data_loop(interval=60, max_age=60):
+async def cache_clear_old_data_loop(
+    interval=CLEAR_IOT_DATA_CACHE_INTERVAL, max_age=CLEAR_IOT_DATA_CACHE_INTERVAL
+):
     """Clear old data every 60 seconds"""
     while True:
         log.debug("=> Clearing old data")
@@ -135,7 +150,7 @@ async def api_data_submission_loop():
                         if device.id is None:
                             continue
 
-                        last_data = backend_api.last_iot_device_data_submission(
+                        last_data = await backend_api.last_iot_device_data_submission(
                             device.id
                         )
                         last_submissions.append(
@@ -168,7 +183,7 @@ async def api_data_submission_loop():
                     sample_data, registered_devices
                 )
                 log.info("=> Submitting %s entries to API", len(sample_data))
-                backend_api.submit_iot_data(formatted_data)
+                await backend_api.submit_iot_data(formatted_data)
 
                 last_submission = to_time
 
@@ -184,7 +199,7 @@ async def api_data_submission_loop():
                     sample_data, registered_devices
                 )
                 log.info("=> Submitting %s entries to API", len(sample_data))
-                backend_api.submit_iot_data(formatted_data)
+                await backend_api.submit_iot_data(formatted_data)
 
                 last_submission = to_time
         else:
@@ -205,7 +220,7 @@ async def api_data_submission_loop():
             log.info("=> [DEMO] Submitting %s entries to API", len(sample_data))
             last_submission = to_time
 
-        await asyncio.sleep(10.0)
+        await asyncio.sleep(DATA_SUBMISSION_INTERVAL)
 
 
 async def process_async_queue(notify_callback=None):

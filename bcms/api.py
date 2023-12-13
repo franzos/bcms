@@ -112,7 +112,7 @@ class BackendAPI:
             well_known["data"].hostname, device.properties.host
         )
 
-    def submit_iot_data(self, data: list):
+    async def submit_iot_data(self, data: list):
         """Submit iot data to server"""
         if self.app_host is None:
             log.warning("No app host set.")
@@ -211,7 +211,7 @@ class BackendAPI:
         else:
             return self.create_iot_device(address)
 
-    def last_iot_device_data_submission(self, iot_device_id: str) -> int:
+    async def last_iot_device_data_submission(self, iot_device_id: str) -> int:
         if self.app_host is None:
             log.warning("No app host set.")
             return None

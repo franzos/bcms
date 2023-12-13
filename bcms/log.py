@@ -1,8 +1,10 @@
 import logging
 import sys
+import os
+import getpass
 from logging.handlers import SysLogHandler, RotatingFileHandler
 
-from .config import LOG_FILE_PATH, LOG_NAME
+from .config import LOG_NAME
 
 # Define a custom log level for console output
 CONSOLE_LOG_LEVEL = logging.INFO
@@ -21,6 +23,14 @@ ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(CONSOLE_LOG_LEVEL)
 ch.setFormatter(formatter)
 log.addHandler(ch)
+
+LOG_FILE_PATH = f"/var/log/{LOG_NAME}.log"
+if getpass.getuser() != "root":
+    LOG_FILE_DIR = os.path.expanduser(f"~/.local/share/{LOG_NAME}")
+    LOG_FILE_PATH = f"{LOG_FILE_DIR}/{LOG_NAME}.log"
+    if not os.path.exists(LOG_FILE_DIR):
+        os.makedirs(LOG_FILE_DIR)
+
 
 # Check the operating system
 opsys = sys.platform.lower()

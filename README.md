@@ -6,6 +6,13 @@
 - Collect BLE data (passive & active)
 - Submit data to API
 
+Defaults:
+
+ - Bluetooth scan for 5s
+ - IOT API data submission every 30s
+ - Clear IOT data cache every 180s
+ - RPC port: `4567`
+
 ## Usage
 
 ### Daemon
@@ -55,6 +62,25 @@ To request pairing:
 ```bash
 bcms pair --address 00:11:22:33:44:55
 ```
+
+### RPC
+
+The CLI relies on a RPC interface which you can use, too:
+
+```
+interface BCMS {
+    list     @0 (onlyApproved :Bool) -> (devices :List(BCMSDeviceInfo), errors :List(Text));
+    approve  @1 (address :Text) -> (status :Bool, errors :List(Text));
+    remove   @2 (address :Text) -> (status :Bool, errors :List(Text));
+    mode     @3 () -> (mode :BCMSWorkingMode);
+    setMode  @4 (mode :BCMSWorkingMode) -> (status: Bool, errors :List(Text));
+    pair     @5 (address :Text) -> (status :Bool, errors :List(Text));
+    unpair   @6 (address :Text) -> (status :Bool, errors :List(Text));
+    isPaired @7 (address :Text) -> (status :Bool, errors :List(Text));
+}
+```
+
+Checkout `bcms/rpc/bcms.capnp` for more details.
 
 ## Development
 
