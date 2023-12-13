@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
-## [0.0.2]
+## [0.0.3]
 
 ### Changed
 
@@ -17,6 +17,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 ### Fixed
 
 - Made unpairing more robust, in case 2nd try is needed
+
+## [0.0.2]
+
+### Fixed
+
+- CI script
 
 ## [0.0.1]
 
