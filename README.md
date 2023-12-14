@@ -82,6 +82,47 @@ interface BCMS {
 
 Checkout `bcms/rpc/bcms.capnp` for more details.
 
+## Spec
+
+IOT data is submitted to the backend like so:
+
+```json
+{
+    "data": [
+        {
+            "iotDeviceId": "cd553938-8960-4e70-864a-a7fba06578c0",
+            "dataType": "heart_rate",
+            "data": [
+                {
+                    "timestamp": "1642694304",
+                    "data": {
+                        "rate": "67"
+                    }
+                },
+                {
+                    "timestamp": "1642694364",
+                    "data": {
+                        "rate": "66"
+                    }
+                }
+            ]
+        },
+        {
+            "iotDeviceId": "cd553938-8960-4e70-864a-a7fba06578c0",
+            "dataType": "battery_level",
+            "data": [
+                {
+                    "timestamp": "1642694364",
+                    "data": {
+                        "level": "22"
+                    }
+                }
+            ]
+        }
+    ]
+}
+```
+
 ## Development
 
 ```bash

@@ -79,6 +79,10 @@ class BackendAPI:
 
     def renew_token(self):
         """Renew access token"""
+        if self.app_host is None:
+            log.warning("No app host set.")
+            raise Exception("No app host set.")
+
         from px_device_identity import Device
 
         now = round(time.time())
@@ -114,9 +118,6 @@ class BackendAPI:
 
     async def submit_iot_data(self, data: list):
         """Submit iot data to server"""
-        if self.app_host is None:
-            log.warning("No app host set.")
-            return None
         self.renew_token()
 
         log.debug("Submitting iot data %s", data)
@@ -132,9 +133,6 @@ class BackendAPI:
 
     def iot_device_exists(self, address: str):
         """Check if iot device exists"""
-        if self.app_host is None:
-            log.warning("No app host set.")
-            return None
         self.renew_token()
 
         log.debug("Checking if iot device exists %s", address)
@@ -167,9 +165,6 @@ class BackendAPI:
 
     def create_iot_device(self, address: str):
         """Create iot device"""
-        if self.app_host is None:
-            log.warning("No app host set.")
-            return None
         self.renew_token()
 
         log.info("Creating iot device %s", address)
@@ -212,12 +207,9 @@ class BackendAPI:
             return self.create_iot_device(address)
 
     async def last_iot_device_data_submission(self, iot_device_id: str) -> int:
-        if self.app_host is None:
-            log.warning("No app host set.")
-            return None
+        """Get last iot device data submission timestamp"""
         self.renew_token()
 
-        """Get last iot device data submission timestamp"""
         url = f"{self.app_host}/api/iot-devices/{iot_device_id}/last-data-submission"
         res = requests.get(
             url, headers=make_bearer_headers(self.access_token), timeout=5
