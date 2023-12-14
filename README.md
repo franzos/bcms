@@ -30,6 +30,12 @@ All arguments:
 - `--use_device_identity`: use device identity for authentication (and submit data to API)
 - `--application_identifier`: identify remote server to register ble devices with and log to. To be used with --use_device_identity
 
+To pair devices with PIN-prompt, running this in the background can be useful.:
+
+```bash
+bt-agent --capability=NoInputNoOutput
+```
+
 ### CLI
 
 Run the CLI:
@@ -149,21 +155,3 @@ Run a specific test:
 ```bash
 python3 tests/test_rpc_client.py
 ```
-
-
-
-rsync -av --exclude-from=.gitignore . softmax@10.10.10.233:/tmp/bcms
-
-systemctl stop bluetooth-client-manager-python.service
-systemctl stop bluetooth-client-manager.service
-
-pip install . --break-system-packages
-
-
-bcms-daemon --debug True --use_device_identity True --application_identifier vhh-server --username default
-
-
-
-
-apt install bluez-tools
-bt-agent --capability=NoInputNoOutput

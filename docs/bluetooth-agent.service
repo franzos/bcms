@@ -1,0 +1,11 @@
+[Unit]
+Description=Bluetooth Agent Service
+After=bluetooth.service
+
+[Service]
+ExecStart=/bin/sh -c '/usr/bin/yes | /usr/bin/bt-agent --capability=NoInputNoOutput'
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=Bluetooth Client Manager Service
+After=multi-user.target
+
+[Service]
+Type=idle
+ExecStart=bcms-daemon
+WorkingDirectory=/root
+User=root
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
