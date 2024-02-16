@@ -3,14 +3,12 @@ import requests
 import logging
 from typing import Union
 from dataclasses import dataclass
-from vhh_bluetooth_terminal_assigned_user import (
+from px_python_shared import (
     get_well_known_by_identifier,
     get_well_known,
     make_bearer_headers,
+    add_scheme_from_auth_host,
 )
-
-from .utils import add_scheme_from_auth_host
-
 
 log = logging.getLogger(__name__)
 

@@ -4,6 +4,7 @@ import asyncio
 import struct
 from datetime import datetime, timedelta
 from bleak import BleakClient, BleakGATTCharacteristic
+from bleak.backends.scanner import AdvertisementData
 from bleak.backends.device import BLEDevice
 from typing import List
 
@@ -12,7 +13,6 @@ from .data_types import (
     DataType,
     TemperatureData,
     BatteryLevelData,
-    AdvertisementData,
     HeartRateData,
     PressureData,
     AlertData,

@@ -1,7 +1,5 @@
 import argparse
 
-from vhh_bluetooth_terminal_assigned_user.config import DEFAULT_USERNAME
-
 
 def parse_cli_params():
     """Parse command line arguments."""
@@ -21,7 +19,7 @@ def parse_cli_params():
         "-u",
         "--username",
         type=str,
-        default=DEFAULT_USERNAME,
+        default="default",
         help="Trigger notification for specific username",
     )
     parser.add_argument(

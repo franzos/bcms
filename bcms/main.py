@@ -4,13 +4,10 @@ import socket
 import logging
 from bleak.backends.device import BLEDevice
 from bleak import BleakScanner
-from vhh_bluetooth_terminal_assigned_user import send_alert
-
+from px_python_shared import send_alert
 from bcms.data_store import limit_iot_data_sample_rate
-
 from .log import *
 from .cli import parse_cli_params
-
 from .config import (
     RPC_ADDRESS,
     RPC_PORT,

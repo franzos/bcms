@@ -1,9 +1,3 @@
-import time
-from typing import List
-from bleak.backends.device import BLEDevice
-from bleak.backends.scanner import AdvertisementData
-
-
 class DataType:
     def __init__(self, data, address, timestamp, name):
         self.data = data

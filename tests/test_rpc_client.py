@@ -1,9 +1,7 @@
 import unittest
-from unittest.mock import Mock, patch
-from asyncio import Future
-import capnp
+from unittest.mock import Mock
 
-from bcms.rpc_client import BCMSClient, BCMSClientConnection
+from bcms.rpc_client import BCMSClient
 
 
 class TestBCMSClient(unittest.IsolatedAsyncioTestCase):
