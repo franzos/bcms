@@ -26,7 +26,10 @@ bcms-daemon --debug True
 All arguments:
 
 - `--debug`: Enable debug logging
+- `--notify False`: Disable notifications
 - `--username USERNAME`: username for notifications
+- `--sleep`: sleep time between scans
+- `--sleep-data`: sleep time between data submissions
 - `--use_device_identity`: use device identity for authentication (and submit data to API)
 - `--application_identifier`: identify remote server to register ble devices with and log to. To be used with --use_device_identity
 
@@ -67,6 +70,36 @@ To request pairing:
 
 ```bash
 bcms pair --address 00:11:22:33:44:55
+```
+
+### Daemon CLI
+
+Run the daemon CLI:
+
+```bash
+$ bcms-daemon --help
+usage: bcms-daemon [-h] [-u USERNAME] [-n NOTIFY] [-s SLEEP] [-sd SLEEP_DATA] [-di USE_DEVICE_IDENTITY]
+                   [-appid APPLICATION_IDENTIFIER] [-d DEBUG]
+
+Bluetooth Client Manager Service Python companion script to fetch data from bluetooth device and write to file.
+
+options:
+  -h, --help            show this help message and exit
+  -u USERNAME, --username USERNAME
+                        Trigger notification for specific username
+  -n NOTIFY, --notify NOTIFY
+                        Trigger notification
+  -s SLEEP, --sleep SLEEP
+                        Sleep time in seconds between checks
+  -sd SLEEP_DATA, --sleep-data SLEEP_DATA
+                        Sleep time in seconds between API submission
+  -di USE_DEVICE_IDENTITY, --use_device_identity USE_DEVICE_IDENTITY
+                        Use device identity for authentication
+  -appid APPLICATION_IDENTIFIER, --application_identifier APPLICATION_IDENTIFIER
+                        Identify remote server to register ble devices with and log to. To be used with
+                        --use_device_identity
+  -d DEBUG, --debug DEBUG
+                        Display more verbose debug logs
 ```
 
 ### RPC
@@ -132,7 +165,8 @@ IOT data is submitted to the backend like so:
 ## Development
 
 ```bash
-export PYTHONPATH="/gnu/store/yknv27l3kzv1cv1zw3jzd00yczz5cqsb-python-dbus-1.2.18/lib/python3.10/site-packages:$PYTHONPATH"
+guix shell python python-dbus
+export PYTHONPATH=$(env | grep GUIX_PYTHONPATH | cut -d '=' -f 2 | cut -d ':' -f 1):$PYTHONPATH
 bcms-daemon --debug True
 ```
 

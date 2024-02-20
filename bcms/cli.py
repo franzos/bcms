@@ -1,4 +1,8 @@
 import argparse
+from .config import (
+    BLUETOOTH_SCAN_INTERVAL,
+    DATA_SUBMISSION_INTERVAL,
+)
 
 
 def parse_cli_params():
@@ -9,13 +13,6 @@ def parse_cli_params():
 
     # add argument
     parser.add_argument(
-        "-t",
-        "--test",
-        type=bool,
-        default=False,
-        help="Simulate and write some test data",
-    )
-    parser.add_argument(
         "-u",
         "--username",
         type=str,
@@ -23,11 +20,25 @@ def parse_cli_params():
         help="Trigger notification for specific username",
     )
     parser.add_argument(
+        "-n",
+        "--notify",
+        type=bool,
+        default=True,
+        help="Trigger notification",
+    )
+    parser.add_argument(
         "-s",
         "--sleep",
         type=int,
-        default=10,
+        default=BLUETOOTH_SCAN_INTERVAL,
         help="Sleep time in seconds between checks",
+    )
+    parser.add_argument(
+        "-sd",
+        "--sleep-data",
+        type=int,
+        default=DATA_SUBMISSION_INTERVAL,
+        help="Sleep time in seconds between API submission",
     )
     parser.add_argument(
         "-di",
@@ -54,29 +65,12 @@ def parse_cli_params():
     # parse the arguments from standard input
     args = parser.parse_args()
 
-    operation_args = {
-        "run_test": False,
-        "username": None,
-        "sleep": 10,  # seconds
-        "debug": False,
+    return {
+        "username": args.username,
+        "notify": args.notify,
+        "sleep": args.sleep,
+        "sleep_data": args.sleep_data,
+        "use_device_identity": args.use_device_identity,
+        "application_identifier": args.application_identifier,
+        "debug": args.debug,
     }
-
-    if args.test:
-        operation_args["run_test"] = True
-
-    if args.username is not None:
-        operation_args["username"] = args.username
-
-    if args.sleep is not None:
-        operation_args["sleep"] = args.sleep
-
-    if args.use_device_identity:
-        operation_args["use_device_identity"] = True
-
-    if args.application_identifier:
-        operation_args["application_identifier"] = args.application_identifier
-
-    if args.debug:
-        operation_args["debug"] = True
-
-    return operation_args

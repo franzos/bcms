@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
+## [0.0.6]
+
+### Changed
+
+- Added switch to disable notifications
+- Made timeout for scanning and submission configurable
+
 ## [0.0.5]
 
 ### Changed

@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 HERE = pathlib.Path(__file__).parent
 
-VERSION = "0.0.5"
+VERSION = "0.0.6"
 PACKAGE_NAME = "bcms"
 AUTHOR = "Franz Geffke"
 AUTHOR_EMAIL = "franz@pantherx.org"
@@ -17,8 +17,8 @@ INSTALL_REQUIRES = [
     "bleak",
     "requests",
     "pycapnp",
-    "px_python_shared",
-    "px-device-identity",
+    "px-python-shared @ https://source.pantherx.org/px-python-shared_latest.tgz",
+    "px-device-identity @ https://source.pantherx.org/px-device-identity_latest.tgz",
 ]
 
 setup(

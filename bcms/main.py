@@ -36,7 +36,7 @@ from .bootstrap import (
 log = logging.getLogger(__name__)
 
 
-async def device_discovery_loop(notify_callback=None):
+async def device_discovery_loop(notify_callback, scan_interval: int):
     """Discover devices and store BLE data"""
 
     def store_data(data: DataType):
@@ -97,7 +97,7 @@ async def device_discovery_loop(notify_callback=None):
 
         log.debug("=> Starting BLE scan")
         await scanner.start()
-        await asyncio.sleep(BLUETOOTH_SCAN_INTERVAL)
+        await asyncio.sleep(scan_interval)
         await scanner.stop()
 
         discovered = scanner.discovered_devices
@@ -131,7 +131,7 @@ async def cache_clear_old_data_loop(
         await asyncio.sleep(interval)
 
 
-async def api_data_submission_loop():
+async def api_data_submission_loop(data_submission_interval: int):
     """Submit data to API every 10 seconds"""
     last_submission = None
     while True:
@@ -217,7 +217,7 @@ async def api_data_submission_loop():
             log.info("=> [DEMO] Submitting %s entries to API", len(sample_data))
             last_submission = to_time
 
-        await asyncio.sleep(DATA_SUBMISSION_INTERVAL)
+        await asyncio.sleep(data_submission_interval)
 
 
 async def process_async_queue(notify_callback=None):
@@ -317,7 +317,10 @@ async def register_devices_loop():
 async def process(
     use_device_identity=False,
     application_identifier=None,
+    notify=False,
     username=None,
+    sleep=BLUETOOTH_SCAN_INTERVAL,
+    sleep_data=DATA_SUBMISSION_INTERVAL,
 ):
     if use_device_identity:
         try:
@@ -327,14 +330,14 @@ async def process(
             exit(1)
 
     def notify_callback(title: str, message: str, timeout: int = 5000):
-        log.debug("Notify callback")
-        send_alert(username, title, message, timeout)
+        if notify:
+            send_alert(username, title, message, timeout)
 
     await asyncio.gather(
-        device_discovery_loop(notify_callback=notify_callback),
+        device_discovery_loop(notify_callback, sleep),
         cache_clear_old_data_loop(),
         rpc_server_loop(),
-        api_data_submission_loop(),
+        api_data_submission_loop(sleep_data),
         register_devices_loop(),
     )
 
@@ -344,14 +347,13 @@ async def process(
 
 def main():
     params = parse_cli_params()
+    username = params["username"]
+    notify = params["notify"]
+    sleep = params["sleep"]
+    sleep_data = params["sleep_data"]
+    use_device_identity = params["use_device_identity"]
+    application_identifier = params["application_identifier"]
     debug = params["debug"]
-    username = "username" in params and params["username"] or None
-    use_device_identity = (
-        "use_device_identity" in params and params["use_device_identity"] or False
-    )
-    application_identifier = (
-        "application_identifier" in params and params["application_identifier"] or None
-    )
 
     if debug:
         ch.setLevel(logging.DEBUG)
@@ -360,6 +362,9 @@ def main():
         process(
             use_device_identity=use_device_identity,
             application_identifier=application_identifier,
+            notify=notify,
             username=username,
+            sleep=sleep,
+            sleep_data=sleep_data,
         )
     )
