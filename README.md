@@ -26,7 +26,7 @@ bcms-daemon --debug True
 All arguments:
 
 - `--debug`: Enable debug logging
-- `--notify False`: Disable notifications
+- `--notify`: Display notifications
 - `--username USERNAME`: username for notifications
 - `--sleep`: sleep time between scans
 - `--sleep-data`: sleep time between data submissions
@@ -165,7 +165,11 @@ IOT data is submitted to the backend like so:
 ## Development
 
 ```bash
-guix shell python python-dbus
+guix shell -m manifest.scm
+python3 -m venv venv
+source venv/bin/activate
+pip3 install --no-dependencies .
+# Might be required
 export PYTHONPATH=$(env | grep GUIX_PYTHONPATH | cut -d '=' -f 2 | cut -d ':' -f 1):$PYTHONPATH
 bcms-daemon --debug True
 ```

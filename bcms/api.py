@@ -70,10 +70,11 @@ class BackendAPI:
 
         self.identifier = identifier
         if identifier is None:
-            log.warning("No well known for identifier %s found.", identifier)
+            log.warning("Well known identifier is undefined.")
         else:
-            self.refresh_well_known()
-            self.is_loaded = True
+            result = self.refresh_well_known()
+            if result:
+                self.is_loaded = True
 
     def renew_token(self):
         """Renew access token"""
@@ -101,18 +102,27 @@ class BackendAPI:
         from px_device_identity import Device
 
         device = Device()
-        well_known_list = get_well_known(device)
-        well_known = get_well_known_by_identifier(
-            well_known=well_known_list["data"], identifier=self.identifier
-        )
+        try:
+            well_known_list = get_well_known(device)
+            if "data" not in well_known_list:
+                log.warning("No well known found. API Error.")
+                return None
 
-        if well_known is None:
-            log.warning("No well known found for %s.", self.identifier)
+            well_known = get_well_known_by_identifier(
+                well_known=well_known_list["data"], identifier=self.identifier
+            )
+
+            if well_known is None or "data" not in well_known:
+                log.warning("No well known found for %s.", self.identifier)
+                return None
+
+            self.app_host = add_scheme_from_auth_host(
+                well_known["data"].hostname, device.properties.host
+            )
+            return well_known
+        except Exception as e:
+            log.error("Error getting well known: %s", e)
             return None
-
-        self.app_host = add_scheme_from_auth_host(
-            well_known["data"].hostname, device.properties.host
-        )
 
     async def submit_iot_data(self, data: list):
         """Submit iot data to server"""

@@ -23,7 +23,7 @@ def parse_cli_params():
         "-n",
         "--notify",
         type=bool,
-        default=True,
+        default=False,
         help="Trigger notification",
     )
     parser.add_argument(

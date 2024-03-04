@@ -11,7 +11,6 @@ CONSOLE_LOG_LEVEL = logging.INFO
 
 # Configure the logger
 log = logging.getLogger(LOG_NAME)
-log.setLevel(logging.DEBUG)
 
 # Create a formatter for all log handlers
 formatter = logging.Formatter(
