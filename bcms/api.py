@@ -171,19 +171,26 @@ class BackendAPI:
         else:
             return IotDeviceExistsResponse(exists=False, remember_device=False)
 
-    def create_iot_device(self, address: str):
+    def create_iot_device(
+        self,
+        hardware_identifier: str,
+        model: str = "generic",
+        connection_type: str = "bluetooth_le",
+        connection_meta: Union[dict, None] = None,
+        supported_data_types: Union[list, None] = None,
+    ):
         """Create iot device"""
         self.renew_token()
 
-        log.info("Creating iot device %s", address)
+        log.info("Creating iot device %s", hardware_identifier)
 
         url = f"{self.app_host}/api/iot-devices"
         data = {
-            "hardwareIdentifier": address,
-            "model": "generic",
-            "connectionType": "bluetooth_le",
-            "connectionMeta": {},
-            "supportedDataTypes": [],
+            "hardwareIdentifier": hardware_identifier,
+            "model": model,
+            "connectionType": connection_type,
+            "connectionMeta": connection_meta or {},
+            "supportedDataTypes": supported_data_types or [],
         }
         res = requests.post(
             url, json=data, headers=make_bearer_headers(self.access_token), timeout=5
