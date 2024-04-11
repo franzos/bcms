@@ -361,7 +361,7 @@ async def process(
         try:
             backend_api.load(application_identifier)
         except Exception as err:
-            log.error("Failed to load backend api. Is this device registered?: %s", e)
+            log.error("Failed to load backend api. Is this device registered?: %s", err)
             exit(1)
 
     def notify_callback(title: str, message: str, timeout: int = 5000):
