@@ -1,3 +1,5 @@
+"""Main module"""
+
 import asyncio
 import time
 import socket
@@ -6,7 +8,7 @@ from bleak.backends.device import BLEDevice
 from bleak import BleakScanner
 from px_python_shared import send_alert
 from bcms.data_store import limit_iot_data_sample_rate
-from .log import *
+from .log import logging
 from .cli import parse_cli_params
 from .config import (
     RPC_ADDRESS,
@@ -40,12 +42,15 @@ async def device_discovery_loop(notify_callback, scan_interval: int):
     """Discover devices and store BLE data"""
 
     def store_data(data: DataType):
+        """If device exists in memory, store data"""
         if devices_mem.exists(data.address):
             devices_data.add(data)
 
     def track_device(device: BLEDevice):
+        """If device is known, update last seen time, otherwise add it to memory"""
         exists_mem = devices_mem.get(device.address)
         if exists_mem is not None and exists_mem.name is not device.name:
+            # Update device name if it has changed
             devices_mem.replace(
                 BCMSDeviceInfo(
                     address=device.address,
@@ -57,6 +62,7 @@ async def device_discovery_loop(notify_callback, scan_interval: int):
                 )
             )
         elif exists_mem is not None:
+            # Update last seen time if device is already known
             devices_mem.update_last_seen(device.address)
         else:
             devices_mem.add(
@@ -136,70 +142,11 @@ async def api_data_submission_loop(data_submission_interval: int):
     last_submission = None
     while True:
         registered_devices = devices_mem.get_registered()
-        if backend_api and backend_api.is_loaded:
-            if last_submission is None:
-                last_submissions = []
 
-                # If we haven't submitted before, determine last timestamp
-                known_devices = devices_mem.get_all()
-                for device in known_devices:
-                    if device.approved is True:
-                        if device.id is None:
-                            continue
+        # Backend not loaded; Cannot submit data
+        if not backend_api.is_loaded:
+            log.info("=> [DEMO] No backend API loaded")
 
-                        last_data = await backend_api.last_iot_device_data_submission(
-                            device.id
-                        )
-                        last_submissions.append(
-                            {"address": device.address, "last_submission": last_data}
-                        )
-                        log.debug("   Last submission for %s: %s", device, last_data)
-
-                filtered_data = []
-                to_time = round(time.time())
-
-                for device in last_submissions:
-                    log.debug(
-                        "=> Fetching data for %s, from %s to %s",
-                        device,
-                        device["last_submission"],
-                        to_time,
-                    )
-                    from_time = device["last_submission"]
-                    data = devices_data.get(
-                        from_time=from_time,
-                        to_time=to_time,
-                        device_address=device["address"],
-                    )
-                    log.debug("   Found %s entries", len(data))
-                    filtered_data.extend(data)
-
-                sample_data = limit_iot_data_sample_rate(filtered_data)
-                log.debug("   Found %s entries - SAMPLED", len(sample_data))
-                formatted_data = dump_iot_data_for_api_submission(
-                    sample_data, registered_devices
-                )
-                log.info("=> Submitting %s entries to API", len(sample_data))
-                await backend_api.submit_iot_data(formatted_data)
-
-                last_submission = to_time
-
-            else:
-                # If we know the last submission, only submit data since then
-                to_time = round(time.time())
-                log.debug("=> Fetching data from %s to %s", last_submission, to_time)
-                data = devices_data.get(from_time=last_submission, to_time=to_time)
-                log.debug("   Found %s entries", len(data))
-                sample_data = limit_iot_data_sample_rate(data)
-                log.debug("   Found %s entries - SAMPLED", len(sample_data))
-                formatted_data = dump_iot_data_for_api_submission(
-                    sample_data, registered_devices
-                )
-                log.info("=> Submitting %s entries to API", len(sample_data))
-                await backend_api.submit_iot_data(formatted_data)
-
-                last_submission = to_time
-        else:
             from_time = None
             if last_submission:
                 from_time = last_submission
@@ -215,6 +162,78 @@ async def api_data_submission_loop(data_submission_interval: int):
                 sample_data, registered_devices
             )
             log.info("=> [DEMO] Submitting %s entries to API", len(sample_data))
+            last_submission = to_time
+
+            await asyncio.sleep(data_submission_interval)
+
+        # Backend API loaded; Submit data
+        if last_submission is None:
+            last_submissions = []
+
+            # If we haven't submitted before, determine last timestamp
+            known_devices = devices_mem.get_all()
+            for device in known_devices:
+                if device.approved is True:
+                    if device.id is None:
+                        continue
+
+                    last_data = await backend_api.last_iot_device_data_submission(
+                        device.id
+                    )
+                    last_submissions.append(
+                        {"address": device.address, "last_submission": last_data}
+                    )
+                    log.debug("   Last submission for %s: %s", device, last_data)
+
+            filtered_data = []
+            to_time = round(time.time())
+
+            for device in last_submissions:
+                log.debug(
+                    "=> Fetching data for %s, from %s to %s",
+                    device,
+                    device["last_submission"],
+                    to_time,
+                )
+                from_time = device["last_submission"]
+                data = devices_data.get(
+                    from_time=from_time,
+                    to_time=to_time,
+                    device_address=device["address"],
+                )
+                log.debug("   Found %s entries", len(data))
+                filtered_data.extend(data)
+
+            sample_data = limit_iot_data_sample_rate(filtered_data)
+            log.debug("   Found %s entries - SAMPLED", len(sample_data))
+            formatted_data = dump_iot_data_for_api_submission(
+                sample_data, registered_devices
+            )
+            if len(sample_data) > 0:
+                log.info("=> Submitting %s entries to API", len(sample_data))
+                await backend_api.submit_iot_data(formatted_data)
+            else:
+                log.info("=> Submitting entries to API: Nothing to submit")
+
+            last_submission = to_time
+
+        else:
+            # If we know the last submission, only submit data since then
+            to_time = round(time.time())
+            log.debug("=> Fetching data from %s to %s", last_submission, to_time)
+            data = devices_data.get(from_time=last_submission, to_time=to_time)
+            log.debug("   Found %s entries", len(data))
+            sample_data = limit_iot_data_sample_rate(data)
+            log.debug("   Found %s entries - SAMPLED", len(sample_data))
+            formatted_data = dump_iot_data_for_api_submission(
+                sample_data, registered_devices
+            )
+            if len(sample_data) > 0:
+                log.info("=> Submitting %s entries to API", len(sample_data))
+                await backend_api.submit_iot_data(formatted_data)
+            else:
+                log.info("=> Submitting entries to API: Nothing to submit")
+
             last_submission = to_time
 
         await asyncio.sleep(data_submission_interval)
@@ -239,8 +258,8 @@ async def process_async_queue(notify_callback=None):
                             is_registered=True,
                         )
                     )
-            except Exception as e:
-                log.error("Failed to create iot device %s: %s", address, e)
+            except Exception as err:
+                log.error("Failed to create iot device %s: %s", address, err)
 
     if len(async_queue) > 0:
         item = async_queue.get()
@@ -269,8 +288,19 @@ async def register_devices_loop():
             # sleep 2s, in case the device was just added, and another registration is ongoing
             # better approach: add created_at and use that to "delay"
             await asyncio.sleep(2)
+
             for device in devices:
-                log.debug("Checking if device is registered: %s", device.address)
+                is_current = device.last_checked_seconds_ago(60 * 60)  # 1 hour
+                if is_current or device.is_registered is False:
+                    log.debug("Checking if device is registered: %s", device.address)
+                else:
+                    log.debug(
+                        "Skipping device %s, last checked %s",
+                        device.address,
+                        device.last_checked_timestamp,
+                    )
+                    continue
+
                 try:
                     result = backend_api.create_iot_device_if_not_exists(device.address)
                     log.debug("Result: %s", result)
@@ -306,9 +336,9 @@ async def register_devices_loop():
                                 is_registered=False,
                             )
                         )
-                except Exception as e:
+                except Exception as err:
                     log.error(
-                        "Failed to check / register device %s: %s", device.address, e
+                        "Failed to check / register device %s: %s", device.address, err
                     )
 
         await asyncio.sleep(60)
@@ -325,7 +355,7 @@ async def process(
     if use_device_identity:
         try:
             backend_api.load(application_identifier)
-        except Exception as e:
+        except Exception as err:
             log.error("Failed to load backend api. Is this device registered?: %s", e)
             exit(1)
 
@@ -356,7 +386,7 @@ def main():
     debug = params["debug"]
 
     if debug:
-        ch.setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(logging.DEBUG)
 
     asyncio.run(
         process(

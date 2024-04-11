@@ -33,7 +33,10 @@ class BCMSDeviceInfoWithLastSeen:
     paired: bool
     id: Union[None, str] = None
     is_registered: bool = False
+    """last_seen: Unix timestamp of the last time the device was seen"""
     last_seen: Union[None, str] = None
+    """last_checked_timestamp: Unix timestamp of the last time the device was checked for data"""
+    last_checked_timestamp: Union[None, int] = None
 
     def device_info(self) -> "BCMSDeviceInfo":
         return BCMSDeviceInfo(
@@ -49,3 +52,9 @@ class BCMSDeviceInfoWithLastSeen:
         if self.last_seen is None:
             return True
         return round(self.last_seen) >= round(time.time() - max_age_s)
+
+    def last_checked_seconds_ago(self, seconds: int) -> bool:
+        """Returns False if last_checked_timestamp is None or if last_checked_timestamp is older than the given seconds"""
+        if self.last_checked_timestamp is None:
+            return False
+        return round(self.last_checked_timestamp) >= round(time.time() - seconds)

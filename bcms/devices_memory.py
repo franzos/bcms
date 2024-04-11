@@ -1,3 +1,5 @@
+"""Module to keep track of devices that have been approved or paired with the BCM service."""
+
 import dataclasses
 import os
 import json
@@ -13,6 +15,8 @@ log = logging.getLogger(__name__)
 
 
 class BCMDeviceMemory:
+    """Tracks devices that have been approved or paired with the BCM service."""
+
     devices: List[BCMSDeviceInfoWithLastSeen]
 
     def __init__(self, file_path=KNOWN_DEVICES_FILE, skip_load=False):
@@ -22,6 +26,7 @@ class BCMDeviceMemory:
         self.load()
 
     def load(self):
+        """Load devices from file."""
         if self.skip_load:
             log.debug("Skipping load of devices memory")
             return
@@ -61,6 +66,7 @@ class BCMDeviceMemory:
             pass
 
     def save(self):
+        """Save devices to file."""
         if self.skip_load:
             log.debug("Skipping save of devices memory")
             return
@@ -89,12 +95,14 @@ class BCMDeviceMemory:
             json.dump(data, file)
 
     def exists(self, address) -> bool:
+        """Check if device exists in memory."""
         for device in self.devices:
             if device.address == address:
                 return True
         return False
 
     def add(self, device: BCMSDeviceInfo):
+        """Add device to memory."""
         log.debug("+ Device %s, %s", device.name, device.address)
         self.replace(device)
 
@@ -102,6 +110,7 @@ class BCMDeviceMemory:
         self,
         device: BCMSDeviceInfo,
     ):
+        """Replace device in memory and save."""
         log.debug("= Device %s, %s", device.name, device.address)
         exists = self.get(device.address)
         if exists:
@@ -110,17 +119,20 @@ class BCMDeviceMemory:
             BCMSDeviceInfoWithLastSeen(
                 *device.__dict__.values(),
                 last_seen=round(time.time()),
+                last_checked_timestamp=round(time.time()),
             )
         )
         if device.paired or device.approved:
             self.save()
 
     def update_last_seen(self, address: str):
+        """Update last seen time for device."""
         device = self.get(address)
         if device:
             device.last_seen = round(time.time())
 
     def remove(self, address: str):
+        """Remove device from memory and save."""
         exists = self.get(address)
         if exists:
             self.devices = [x for x in self.devices if x.address != address]
@@ -129,18 +141,22 @@ class BCMDeviceMemory:
                 self.save()
 
     def get(self, address: str) -> Union[BCMSDeviceInfoWithLastSeen, None]:
+        """Get device from memory."""
         for device in self.devices:
             if device.address == address:
                 return device
         return None
 
     def get_all(self) -> list[BCMSDeviceInfoWithLastSeen]:
+        """Get all devices from memory."""
         return self.devices
 
     def get_registered(self) -> list[BCMSDeviceInfoWithLastSeen]:
+        """Get all registered devices from memory."""
         return [x for x in self.devices if x.is_registered]
 
     def get_approved_or_paired(
         self,
     ) -> list[BCMSDeviceInfoWithLastSeen]:
+        """Get all approved or paired devices from memory."""
         return [x for x in self.devices if (x.approved or x.paired)]

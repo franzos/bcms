@@ -10,6 +10,8 @@ from px_python_shared import (
     add_scheme_from_auth_host,
 )
 
+from bcms.config import HTTP_TIMEOUT_SECONDS
+
 log = logging.getLogger(__name__)
 
 
@@ -120,8 +122,8 @@ class BackendAPI:
                 well_known["data"].hostname, device.properties.host
             )
             return well_known
-        except Exception as e:
-            log.error("Error getting well known: %s", e)
+        except Exception as err:
+            log.error("Error getting well known: %s", err)
             return None
 
     async def submit_iot_data(self, data: list):
@@ -135,7 +137,7 @@ class BackendAPI:
             url,
             json={"data": data},
             headers=make_bearer_headers(self.access_token),
-            timeout=5,
+            timeout=HTTP_TIMEOUT_SECONDS,
         )
         res.raise_for_status()
 
@@ -150,7 +152,7 @@ class BackendAPI:
             url,
             json={"hardwareIdentifier": address},
             headers=make_bearer_headers(self.access_token),
-            timeout=5,
+            timeout=HTTP_TIMEOUT_SECONDS,
         )
         res.raise_for_status()
         data = res.json()
@@ -193,7 +195,10 @@ class BackendAPI:
             "supportedDataTypes": supported_data_types or [],
         }
         res = requests.post(
-            url, json=data, headers=make_bearer_headers(self.access_token), timeout=5
+            url,
+            json=data,
+            headers=make_bearer_headers(self.access_token),
+            timeout=HTTP_TIMEOUT_SECONDS,
         )
         res.raise_for_status()
         data = res.json()
@@ -227,6 +232,8 @@ class BackendAPI:
 
         url = f"{self.app_host}/api/iot-devices/{iot_device_id}/last-data-submission"
         res = requests.get(
-            url, headers=make_bearer_headers(self.access_token), timeout=5
+            url,
+            headers=make_bearer_headers(self.access_token),
+            timeout=HTTP_TIMEOUT_SECONDS,
         )
         return res.json()

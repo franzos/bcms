@@ -9,9 +9,6 @@ from .config import LOG_NAME
 # Define a custom log level for console output
 CONSOLE_LOG_LEVEL = logging.INFO
 
-# Configure the logger
-log = logging.getLogger(LOG_NAME)
-
 # Create a formatter for all log handlers
 formatter = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"
@@ -21,7 +18,7 @@ formatter = logging.Formatter(
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(CONSOLE_LOG_LEVEL)
 ch.setFormatter(formatter)
-log.addHandler(ch)
+logging.getLogger().addHandler(ch)
 
 LOG_FILE_PATH = f"/var/log/{LOG_NAME}.log"
 if getpass.getuser() != "root":
@@ -32,18 +29,20 @@ if getpass.getuser() != "root":
 
 
 # Check the operating system
-opsys = sys.platform.lower()
+OPERATING_SYSTEM = sys.platform.lower()
 
-if opsys == "linux" or opsys.startswith("linux"):  # Handle different Linux variations
+if OPERATING_SYSTEM == "linux" or OPERATING_SYSTEM.startswith(
+    "linux"
+):  # Handle different Linux variations
     # On Linux, log all events to file
     log_file_path = LOG_FILE_PATH
     fh = RotatingFileHandler(log_file_path, maxBytes=10000, backupCount=1)
     fh.setLevel(logging.INFO)
     fh.setFormatter(formatter)
-    log.addHandler(fh)
+    logging.getLogger().addHandler(fh)
 
     # On Linux, engage syslog for warning-level and above logs
     sh = SysLogHandler()
     sh.setLevel(logging.WARNING)
     sh.setFormatter(formatter)
-    log.addHandler(sh)
+    logging.getLogger().addHandler(sh)

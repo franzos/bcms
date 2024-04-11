@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
+## [0.0.8]
+
+### Changed
+
+- Internal changes related to `create_iot_device`
+- Increase http timeout to 10s
+- Improved logging implementation
+
+### Added
+
+- Last check device timestamp, to reduce the number of checks
+
+### Fixed
+
+- Trying to submit data, even though no data was collected
+
 ## [0.0.7]
 
 ### Changed

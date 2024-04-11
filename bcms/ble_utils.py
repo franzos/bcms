@@ -213,8 +213,8 @@ async def process_supported_device(
                 )
 
     # if timeout error, retry max 3 times
-    except asyncio.TimeoutError as e:
-        log.error("TimeoutError: %s", e)
+    except asyncio.TimeoutError as err:
+        log.error("TimeoutError: %s", err)
         if notify_callback:
             notify_callback(
                 "TimeoutError",
@@ -232,11 +232,11 @@ async def process_supported_device(
                 retry_count=retry_count + 1,
             )
         else:
-            raise e
+            raise err
 
-    except Exception as e:
-        log.error("Exception: %s", e)
-        raise e
+    except Exception as err:
+        log.error("Exception: %s", err)
+        raise err
 
 
 def iot_advertisement_data_callback_wrapper(

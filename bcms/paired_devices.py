@@ -1,3 +1,5 @@
+"""Module to retrieve paired devices from dbus"""
+
 import dbus
 import logging
 
@@ -14,8 +16,10 @@ def get_paired_devices():
     bus = dbus.SystemBus()
     try:
         obj = bus.get_object(BUS_NAME, "/")
-    except Exception:
-        log.error("Failed to connect to %s on dbus. Is bluetoothd running?", BUS_NAME)
+    except Exception as err:
+        log.error(
+            "Failed to connect to %s on dbus. Is bluetoothd running? %s", BUS_NAME, err
+        )
         return None
     manager = dbus.Interface(obj, "org.freedesktop.DBus.ObjectManager")
     paired_devices = set()

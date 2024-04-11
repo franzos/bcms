@@ -19,6 +19,8 @@ pimstore_capnp = capnp.load(CAPNP_INTERFACE)
 device_capnp = pimstore_capnp.BCMSDeviceInfo
 working_mode_capnp = pimstore_capnp.BCMSWorkingMode
 
+HTTP_TIMEOUT_SECONDS = 10
+
 # LOG
 LOG_NAME = "bcms"
 

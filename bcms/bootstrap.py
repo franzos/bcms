@@ -35,16 +35,16 @@ def list_devices(max_age_s=60, only_approved=False):
     paired = None
     try:
         paired = get_paired_devices()
-    except Exception as e:
-        log.error("Failed to get paired devices %s", e)
+    except Exception as err:
+        log.error("Failed to get paired devices %s", err)
         paired = []
 
     log.debug("Found devices %s", len(devices))
     filtered_devices = []
     for device in devices:
         if paired:
-            for p in paired:
-                if p.address == device.address:
+            for pd in paired:
+                if pd.address == device.address:
                     device.approved = True
                     device.paired = True
                     break
@@ -120,14 +120,14 @@ def remove_device(device_address: str, notify_callback=None):
 
     if exists and exists.paired:
         raise Exception("Cannot remove paired device. Unpair first.")
-    else:
-        devices_mem.remove(device_address)
-        log.debug("   Removed %s", device_address)
 
-        if notify_callback:
-            notify_callback("Removed successfully", f"Removed {device_address}", 5000)
+    devices_mem.remove(device_address)
+    log.debug("   Removed %s", device_address)
 
-        return True
+    if notify_callback:
+        notify_callback("Removed successfully", f"Removed {device_address}", 5000)
+
+    return True
 
 
 async def pair_device(device_address: str, success_callback=None, notify_callback=None):
@@ -186,6 +186,7 @@ async def pair_device(device_address: str, success_callback=None, notify_callbac
 
 
 async def unpair_subprocess(device_address: str) -> bool:
+    """Unpair a device using bluetoothctl subprocess"""
     try:
         # bluetoothctl remove 00:09:1F:8A:BC:21
         result = subprocess.run(
@@ -252,9 +253,9 @@ async def unpair_device(device_address: str, notify_callback=None):
                 "Unpaired successfully", f"Unpaired from {device_address}", 5000
             )
 
-    except Exception as e:
+    except Exception as err:
         # Try an alternative method
-        log.error("Failed to unpair %s: %s", device_address, e)
+        log.error("Failed to unpair %s: %s", device_address, err)
         log.info("Trying to unpair %s with bluetoothctl", device_address)
         success_manual = await unpair_subprocess(device_address)
         if success_manual:
@@ -266,14 +267,14 @@ async def unpair_device(device_address: str, notify_callback=None):
                     "Unpaired successfully", f"Unpaired from {device_address}", 5000
                 )
         else:
-            log.error("Failed to unpair %s: %s", device_address, e)
+            log.error("Failed to unpair %s: %s", device_address, err)
             if notify_callback:
                 notify_callback(
                     "Failed to unpair",
-                    f"Failed to unpair from {device_address}: {e}",
+                    f"Failed to unpair from {device_address}: {err}",
                     5000,
                 )
-            raise e
+            raise err
 
 
 def is_paired_device(device_address: str):
