@@ -4,8 +4,8 @@ import dataclasses
 import os
 import json
 import time
-from typing import List, Union
 import logging
+from typing import List, Union
 
 from .config import KNOWN_DEVICES_FILE
 from .devices_classes import BCMSDeviceInfo, BCMSDeviceInfoWithLastSeen

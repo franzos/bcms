@@ -4,8 +4,7 @@ import asyncio
 import socket
 
 from .utils import format_boolean
-from .config import RPC_ADDRESS, RPC_PORT
-from .config import pimstore_capnp
+from .config import RPC_ADDRESS, RPC_PORT, pimstore_capnp
 
 
 async def myreader(client, reader):
@@ -140,3 +139,7 @@ def main():
     args = parser.parse_args()
 
     asyncio.run(main_loop(args))
+
+
+if __name__ == "__main__":
+    main()

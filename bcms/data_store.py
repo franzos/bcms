@@ -1,8 +1,8 @@
 import sqlite3
 import json
+import logging
 from datetime import datetime
 from typing import List
-import logging
 
 from .devices_classes import BCMSDeviceInfoWithLastSeen
 from .data_types import (

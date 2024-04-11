@@ -1,48 +1,57 @@
-import logging
-import sys
+import json
+import logging.config
 import os
 import getpass
-from logging.handlers import SysLogHandler, RotatingFileHandler
-
-from .config import LOG_NAME
-
-# Define a custom log level for console output
-CONSOLE_LOG_LEVEL = logging.INFO
-
-# Create a formatter for all log handlers
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"
-)
-
-# Create a console handler
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(CONSOLE_LOG_LEVEL)
-ch.setFormatter(formatter)
-logging.getLogger().addHandler(ch)
-
-LOG_FILE_PATH = f"/var/log/{LOG_NAME}.log"
-if getpass.getuser() != "root":
-    LOG_FILE_DIR = os.path.expanduser(f"~/.local/share/{LOG_NAME}")
-    LOG_FILE_PATH = f"{LOG_FILE_DIR}/{LOG_NAME}.log"
-    if not os.path.exists(LOG_FILE_DIR):
-        os.makedirs(LOG_FILE_DIR)
+import pkg_resources
 
 
-# Check the operating system
-OPERATING_SYSTEM = sys.platform.lower()
+LOG_NAME = "bcms"
 
-if OPERATING_SYSTEM == "linux" or OPERATING_SYSTEM.startswith(
-    "linux"
-):  # Handle different Linux variations
-    # On Linux, log all events to file
-    log_file_path = LOG_FILE_PATH
-    fh = RotatingFileHandler(log_file_path, maxBytes=10000, backupCount=1)
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(formatter)
-    logging.getLogger().addHandler(fh)
+CONFIG = pkg_resources.resource_filename(__name__, "logging.json")
+with open(CONFIG, "r", encoding="utf-8") as f:
+    config = json.load(f)
 
-    # On Linux, engage syslog for warning-level and above logs
-    sh = SysLogHandler()
-    sh.setLevel(logging.WARNING)
-    sh.setFormatter(formatter)
-    logging.getLogger().addHandler(sh)
+logging.config.dictConfig(config)
+
+
+def set_nonroot_logging():
+    """Set the logging file to a non-root user location."""
+    if getpass.getuser() != "root":
+        # Create paths
+        LOG_FILE_DIR = os.path.expanduser(f"~/.local/share/{LOG_NAME}")
+        LOG_FILE_PATH = f"{LOG_FILE_DIR}/{LOG_NAME}.log"
+        if not os.path.exists(LOG_FILE_DIR):
+            os.makedirs(LOG_FILE_DIR)
+
+        # Get the root logger
+        root_logger = logging.getLogger()
+
+        # Find the file handler
+        file_handler = None
+        for handler in root_logger.handlers:
+            if isinstance(handler, logging.handlers.RotatingFileHandler):
+                file_handler = handler
+                break
+
+        if file_handler:
+            # Close the old file handler
+            file_handler.close()
+            root_logger.removeHandler(file_handler)
+
+            # Create a new file handler with the updated filename
+            new_file_handler = logging.handlers.RotatingFileHandler(LOG_FILE_PATH)
+            new_file_handler.setLevel(file_handler.level)
+            new_file_handler.setFormatter(file_handler.formatter)
+
+            # Add the new file handler to the root logger
+            root_logger.addHandler(new_file_handler)
+
+
+def set_debugging(log):
+    """Set the logging level to DEBUG for the root logger and all its handlers."""
+    root_log = logging.getLogger()
+    root_log.setLevel(logging.DEBUG)
+    for handler in root_log.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            handler.setLevel(logging.DEBUG)
+    log.debug("Debug mode enabled ... really.")

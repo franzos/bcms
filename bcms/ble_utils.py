@@ -1,12 +1,12 @@
-import logging
 import time
+from typing import List
 import asyncio
 import struct
+import logging
 from datetime import datetime, timedelta
 from bleak import BleakClient, BleakGATTCharacteristic
 from bleak.backends.scanner import AdvertisementData
 from bleak.backends.device import BLEDevice
-from typing import List
 
 from .data_types import (
     BloodPressureData,
@@ -139,10 +139,10 @@ async def process_supported_device(
                     if "read" in char.properties:
                         if char.uuid == "00002a19-0000-1000-8000-00805f9b34fb":
                             value = bytes(await client.read_gatt_char(char.uuid))
-                            print("battery", value)
+                            log.debug("battery", value)
                         elif char.uuid == "00002a35-0000-1000-8000-00805f9b34fb":
                             value = bytes(await client.read_gatt_char(char.uuid))
-                            print("serial", value)
+                            log.debug("serial", value)
 
                     if char.uuid == "00002a08-0000-1000-8000-00805f9b34fb":
                         value = await client.read_gatt_char(char.uuid)
@@ -222,7 +222,7 @@ async def process_supported_device(
                 10000,
             )
         if retry_count < 3:
-            log.info("Retrying connection...%d", retry_count)
+            log.debug("Retrying connection...%d", retry_count)
             await asyncio.sleep(0.1)
             await process_supported_device(
                 device,

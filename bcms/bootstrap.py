@@ -1,7 +1,7 @@
-from bleak import BleakClient
-from bleak.exc import BleakDeviceNotFoundError
-import logging
 import subprocess
+from bleak import BleakClient
+import logging
+from bleak.exc import BleakDeviceNotFoundError
 
 from .queue import AsyncQueue
 from .paired_devices import get_paired_devices

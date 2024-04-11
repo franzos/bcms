@@ -1,8 +1,9 @@
 import time
-import requests
 import logging
 from typing import Union
 from dataclasses import dataclass
+import requests
+
 from px_python_shared import (
     get_well_known_by_identifier,
     get_well_known,

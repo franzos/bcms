@@ -21,9 +21,6 @@ working_mode_capnp = pimstore_capnp.BCMSWorkingMode
 
 HTTP_TIMEOUT_SECONDS = 10
 
-# LOG
-LOG_NAME = "bcms"
-
 # LEGACY
 KNOWN_DEVICES_FILE = os.path.expanduser(
     "~/.local/share/bluetooth-client-manager-service/device.json"

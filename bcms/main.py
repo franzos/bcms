@@ -1,6 +1,7 @@
 """Main module"""
 
 import asyncio
+import getpass
 import time
 import socket
 import logging
@@ -8,7 +9,7 @@ from bleak.backends.device import BLEDevice
 from bleak import BleakScanner
 from px_python_shared import send_alert
 from bcms.data_store import limit_iot_data_sample_rate
-from .log import logging
+from . import log as _log
 from .cli import parse_cli_params
 from .config import (
     RPC_ADDRESS,
@@ -78,7 +79,7 @@ async def device_discovery_loop(notify_callback, scan_interval: int):
         """Connect to device to update time and retrieve data"""
         for supported in SUPPORTED_DEVICES:
             if device.name.startswith(supported):
-                log.info("=> Connecting to %s", device)
+                log.debug("=> Connecting to %s", device)
                 notify_callback("Connecting", f"Connecting to {device.name}", 10000)
                 try:
                     await process_supported_device(
@@ -153,7 +154,7 @@ async def api_data_submission_loop(data_submission_interval: int):
             else:
                 from_time = round(time.time() - 60)
             to_time = round(time.time())
-            log.info("=> Fetching data from %s to %s", from_time, to_time)
+            log.debug("=> Fetching data from %s to %s", from_time, to_time)
             data = devices_data.get(from_time=from_time, to_time=to_time)
             log.debug("   Found %s entries", len(data))
             sample_data = limit_iot_data_sample_rate(data)
@@ -161,10 +162,14 @@ async def api_data_submission_loop(data_submission_interval: int):
             formatted_data = dump_iot_data_for_api_submission(
                 sample_data, registered_devices
             )
-            log.info("=> [DEMO] Submitting %s entries to API", len(sample_data))
+            if len(sample_data) > 0:
+                log.debug("=> [DEMO] Submitting %s entries to API", len(sample_data))
+            else:
+                log.debug("=> [DEMO] Submitting entries to API: Nothing to submit")
             last_submission = to_time
 
             await asyncio.sleep(data_submission_interval)
+            continue
 
         # Backend API loaded; Submit data
         if last_submission is None:
@@ -210,10 +215,10 @@ async def api_data_submission_loop(data_submission_interval: int):
                 sample_data, registered_devices
             )
             if len(sample_data) > 0:
-                log.info("=> Submitting %s entries to API", len(sample_data))
+                log.debug("=> Submitting %s entries to API", len(sample_data))
                 await backend_api.submit_iot_data(formatted_data)
             else:
-                log.info("=> Submitting entries to API: Nothing to submit")
+                log.debug("=> Submitting entries to API: Nothing to submit")
 
             last_submission = to_time
 
@@ -229,10 +234,10 @@ async def api_data_submission_loop(data_submission_interval: int):
                 sample_data, registered_devices
             )
             if len(sample_data) > 0:
-                log.info("=> Submitting %s entries to API", len(sample_data))
+                log.debug("=> Submitting %s entries to API", len(sample_data))
                 await backend_api.submit_iot_data(formatted_data)
             else:
-                log.info("=> Submitting entries to API: Nothing to submit")
+                log.debug("=> Submitting entries to API: Nothing to submit")
 
             last_submission = to_time
 
@@ -372,9 +377,6 @@ async def process(
     )
 
 
-# if __name__ == "__main__":
-
-
 def main():
     params = parse_cli_params()
     username = params["username"]
@@ -385,8 +387,11 @@ def main():
     application_identifier = params["application_identifier"]
     debug = params["debug"]
 
+    if getpass.getuser() != "root":
+        _log.set_nonroot_logging()
+
     if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+        _log.set_debugging(log)
 
     asyncio.run(
         process(
@@ -398,3 +403,7 @@ def main():
             sleep_data=sleep_data,
         )
     )
+
+
+if __name__ == "__main__":
+    main()
