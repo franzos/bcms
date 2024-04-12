@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 HERE = pathlib.Path(__file__).parent
 
-VERSION = "0.0.9"
+VERSION = "0.0.11"
 PACKAGE_NAME = "bcms"
 AUTHOR = "Franz Geffke"
 AUTHOR_EMAIL = "franz@pantherx.org"
@@ -34,7 +34,7 @@ setup(
     include_package_data=True,
     package_data={"": ["rpc/bcms.capnp", "logging.json"]},
     entry_points={
-        "console_scripts": ["bcms-daemon=bcms.main", "bcms=bcms.rpc_client"],
+        "console_scripts": ["bcms-daemon=bcms.main:main", "bcms=bcms.rpc_client:main"],
     },
     packages=find_packages(),
     zip_safe=False,

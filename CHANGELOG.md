@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
+## [0.0.11]
+
+### Fixed
+
+- Fixed an issue on how we invoke the module, from CLI
+
 ## [0.0.10]
 
 ### Fixed
