@@ -8,8 +8,6 @@ from .paired_devices import get_paired_devices
 from .devices_memory import BCMDeviceMemory
 from .data_store import BCMSDeviceDataDB
 from .devices_classes import BCMSDeviceInfo
-from .api import BackendAPI
-
 
 log = logging.getLogger(__name__)
 
@@ -23,8 +21,6 @@ devices_data = BCMSDeviceDataDB()
 # - auth_host
 # - api_host
 runtime_data = {}
-
-backend_api = BackendAPI()
 
 async_queue = AsyncQueue()
 

@@ -8,6 +8,7 @@ import logging
 from bleak.backends.device import BLEDevice
 from bleak import BleakScanner
 from px_python_shared import send_alert
+from bcms.api import BackendAPI
 from bcms.data_store import limit_iot_data_sample_rate
 from . import log as _log
 from .cli import parse_cli_params
@@ -29,7 +30,6 @@ from .rpc_server import new_rpc_connection
 from .bootstrap import (
     devices_mem,
     devices_data,
-    backend_api,
     async_queue,
     pair_device,
     unpair_device,
@@ -39,7 +39,9 @@ from .bootstrap import (
 log = logging.getLogger(__name__)
 
 
-async def device_discovery_loop(notify_callback, scan_interval: int):
+async def device_discovery_loop(
+    backend_api: BackendAPI, notify_callback, scan_interval: int
+):
     """Discover devices and store BLE data"""
 
     def store_data(data: DataType):
@@ -116,7 +118,7 @@ async def device_discovery_loop(notify_callback, scan_interval: int):
                 await connect_device(device)
 
         await asyncio.sleep(1)
-        await process_async_queue(notify_callback=notify_callback)
+        await process_async_queue(backend_api, notify_callback=notify_callback)
 
 
 async def rpc_server_loop():
@@ -138,7 +140,9 @@ async def cache_clear_old_data_loop(
         await asyncio.sleep(interval)
 
 
-async def api_data_submission_loop(data_submission_interval: int):
+async def api_data_submission_loop(
+    backend_api: BackendAPI, data_submission_interval: int
+):
     """Submit data to API every 10 seconds"""
     last_submission = None
     while True:
@@ -244,7 +248,7 @@ async def api_data_submission_loop(data_submission_interval: int):
         await asyncio.sleep(data_submission_interval)
 
 
-async def process_async_queue(notify_callback=None):
+async def process_async_queue(backend_api: BackendAPI, notify_callback=None):
     """Process async queue"""
 
     def pairing_success_callback(address: str, name: str = None):
@@ -284,7 +288,7 @@ async def process_async_queue(notify_callback=None):
                 log.error("Unknown unpair err: %s", err)
 
 
-async def register_devices_loop():
+async def register_devices_loop(backend_api: BackendAPI):
     while True:
         log.debug("=> Registering devices")
         if backend_api.is_loaded:
@@ -357,6 +361,8 @@ async def process(
     sleep=BLUETOOTH_SCAN_INTERVAL,
     sleep_data=DATA_SUBMISSION_INTERVAL,
 ):
+    backend_api = BackendAPI()
+
     if use_device_identity:
         try:
             backend_api.load(application_identifier)
@@ -369,11 +375,11 @@ async def process(
             send_alert(username, title, message, timeout)
 
     await asyncio.gather(
-        device_discovery_loop(notify_callback, sleep),
+        device_discovery_loop(backend_api, notify_callback, sleep),
         cache_clear_old_data_loop(),
         rpc_server_loop(),
-        api_data_submission_loop(sleep_data),
-        register_devices_loop(),
+        api_data_submission_loop(backend_api, sleep_data),
+        register_devices_loop(backend_api),
     )
 
 

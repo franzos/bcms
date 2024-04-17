@@ -49,8 +49,6 @@ class BackendAPI:
     device_id: Union[None, str]
 
     well_known: Union[None, dict]
-    access_token: Union[None, str]
-    access_token_expires_at: Union[None, int]
 
     def __init__(self) -> None:
         self.is_loaded = False
@@ -61,8 +59,6 @@ class BackendAPI:
         self.device_id = None
 
         self.well_known = None
-        self.access_token = None
-        self.access_token_expires_at = None
 
     def load(self, identifier: Union[str, None] = None):
         from px_device_identity import is_superuser_or_quit
@@ -79,26 +75,15 @@ class BackendAPI:
             if result:
                 self.is_loaded = True
 
-    def renew_token(self):
-        """Renew access token"""
-        if self.app_host is None:
-            log.warning("No app host set.")
-            raise Exception("No app host set.")
+    def access_token(self) -> str:
+        """Get access token"""
 
         from px_device_identity import Device
 
-        now = round(time.time())
-        if (
-            self.access_token is None
-            or self.access_token_expires_at is None
-            or self.access_token_expires_at < now
-        ):
-            device = Device()
-            result = device.get_access_token()
+        device = Device()
+        result = device.get_access_token()
 
-            self.auth_host = device.properties.host
-            self.access_token = result["access_token"]
-            self.access_token_expires_at = result["expires_at"]
+        return result["access_token"]
 
     def refresh_well_known(self):
         """Refresh well known"""
@@ -129,7 +114,6 @@ class BackendAPI:
 
     async def submit_iot_data(self, data: list):
         """Submit iot data to server"""
-        self.renew_token()
 
         log.debug("Submitting iot data %s", data)
 
@@ -137,14 +121,13 @@ class BackendAPI:
         res = requests.post(
             url,
             json={"data": data},
-            headers=make_bearer_headers(self.access_token),
+            headers=make_bearer_headers(self.access_token()),
             timeout=HTTP_TIMEOUT_SECONDS,
         )
         res.raise_for_status()
 
     def iot_device_exists(self, address: str):
         """Check if iot device exists"""
-        self.renew_token()
 
         log.debug("Checking if iot device exists %s", address)
 
@@ -152,7 +135,7 @@ class BackendAPI:
         res = requests.post(
             url,
             json={"hardwareIdentifier": address},
-            headers=make_bearer_headers(self.access_token),
+            headers=make_bearer_headers(self.access_token()),
             timeout=HTTP_TIMEOUT_SECONDS,
         )
         res.raise_for_status()
@@ -183,7 +166,6 @@ class BackendAPI:
         supported_data_types: Union[list, None] = None,
     ):
         """Create iot device"""
-        self.renew_token()
 
         log.info("Creating iot device %s", hardware_identifier)
 
@@ -198,7 +180,7 @@ class BackendAPI:
         res = requests.post(
             url,
             json=data,
-            headers=make_bearer_headers(self.access_token),
+            headers=make_bearer_headers(self.access_token()),
             timeout=HTTP_TIMEOUT_SECONDS,
         )
         res.raise_for_status()
@@ -229,12 +211,11 @@ class BackendAPI:
 
     async def last_iot_device_data_submission(self, iot_device_id: str) -> int:
         """Get last iot device data submission timestamp"""
-        self.renew_token()
 
         url = f"{self.app_host}/api/iot-devices/{iot_device_id}/last-data-submission"
         res = requests.get(
             url,
-            headers=make_bearer_headers(self.access_token),
+            headers=make_bearer_headers(self.access_token()),
             timeout=HTTP_TIMEOUT_SECONDS,
         )
         return res.json()
