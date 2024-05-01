@@ -1,4 +1,3 @@
-import time
 import logging
 from typing import Union
 from dataclasses import dataclass
@@ -126,6 +125,20 @@ class BackendAPI:
         )
         res.raise_for_status()
 
+    def submit_iot_data_sync(self, data: list):
+        """Submit iot data to server"""
+
+        log.debug("Submitting iot data %s", data)
+
+        url = f"{self.app_host}/api/iot-devices/data/submit"
+        res = requests.post(
+            url,
+            json={"data": data},
+            headers=make_bearer_headers(self.access_token()),
+            timeout=HTTP_TIMEOUT_SECONDS,
+        )
+        res.raise_for_status()
+
     def iot_device_exists(self, address: str):
         """Check if iot device exists"""
 
@@ -177,6 +190,9 @@ class BackendAPI:
             "connectionMeta": connection_meta or {},
             "supportedDataTypes": supported_data_types or [],
         }
+        
+        log.info("Creating iot device with data %s", data)
+        
         res = requests.post(
             url,
             json=data,
