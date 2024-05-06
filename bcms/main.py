@@ -186,13 +186,13 @@ async def api_data_submission_loop(
                     if device.id is None:
                         continue
 
-                    last_data = await backend_api.last_iot_device_data_submission(
+                    last_data_timestamp = await backend_api.last_iot_device_data_submission(
                         device.id
                     )
                     last_submissions.append(
-                        {"address": device.address, "last_submission": last_data}
+                        {"address": device.address, "last_submission": last_data_timestamp}
                     )
-                    log.debug("   Last submission for %s: %s", device, last_data)
+                    log.debug("   Last submission for %s: %s", device, last_data_timestamp)
 
             filtered_data = []
             to_time = round(time.time())

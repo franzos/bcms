@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 HERE = pathlib.Path(__file__).parent
 
-VERSION = "0.0.13"
+VERSION = "0.0.14"
 PACKAGE_NAME = "bcms"
 AUTHOR = "Franz Geffke"
 AUTHOR_EMAIL = "franz@pantherx.org"

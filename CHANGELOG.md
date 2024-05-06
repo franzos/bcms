@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
+## [0.0.14]
+
+### Fixed
+
+- Adapt to server changes on `last-data-submission` endpoint
+
 ## [0.0.13]
 
 ### Changed

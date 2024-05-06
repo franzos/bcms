@@ -234,4 +234,8 @@ class BackendAPI:
             headers=make_bearer_headers(self.access_token()),
             timeout=HTTP_TIMEOUT_SECONDS,
         )
-        return res.json()
+        res.raise_for_status()
+        # returns { timestamp: int, createdAt: Date }
+        data = res.json()
+        
+        return data["timestamp"]
