@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
+## [0.0.15]
+
+### Fixed
+
+- Manage BCMS class outside async loop to prevent the class from resetting in some cases
+
 ## [0.0.14]
 
 ### Fixed
