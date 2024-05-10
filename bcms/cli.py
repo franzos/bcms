@@ -40,6 +40,7 @@ def parse_cli_params():
         default=DATA_SUBMISSION_INTERVAL,
         help="Sleep time in seconds between API submission",
     )
+    # TODO: Deprecated
     parser.add_argument(
         "-di",
         "--use_device_identity",

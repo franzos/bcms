@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 HERE = pathlib.Path(__file__).parent
 
-VERSION = "0.0.15"
+VERSION = "0.0.16"
 PACKAGE_NAME = "bcms"
 AUTHOR = "Franz Geffke"
 AUTHOR_EMAIL = "franz@pantherx.org"
@@ -19,6 +19,7 @@ INSTALL_REQUIRES = [
     "pycapnp",
     "px-python-shared @ https://source.pantherx.org/px-python-shared_latest.tgz",
     "px-device-identity @ https://source.pantherx.org/px-device-identity_latest.tgz",
+    "sentry_sdk"
 ]
 
 setup(

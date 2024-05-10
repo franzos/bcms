@@ -10,6 +10,12 @@ export PYTHONPATH=$(env | grep GUIX_PYTHONPATH | cut -d '=' -f 2 | cut -d ':' -f
 bcms-daemon --debug True
 ```
 
+With common options:
+
+```bash
+bcms-daemon --use_device_identity True --application_identifier ...
+```
+
 One-liner client:
 
 ```bash

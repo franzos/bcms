@@ -93,11 +93,8 @@ options:
                         Sleep time in seconds between checks
   -sd SLEEP_DATA, --sleep-data SLEEP_DATA
                         Sleep time in seconds between API submission
-  -di USE_DEVICE_IDENTITY, --use_device_identity USE_DEVICE_IDENTITY
-                        Use device identity for authentication
   -appid APPLICATION_IDENTIFIER, --application_identifier APPLICATION_IDENTIFIER
-                        Identify remote server to register ble devices with and log to. To be used with
-                        --use_device_identity
+                        Identify remote server to register ble devices with and log to.
   -d DEBUG, --debug DEBUG
                         Display more verbose debug logs
 ```

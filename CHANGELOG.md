@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 
+## [0.0.16]
+
+### Changed
+
+- Deprecated `--use_device_identity`; As long as `application_identifier` is set, use API.
+- Make API init more robust
+
+### Added
+
+- Sentry integration
+
 ## [0.0.15]
 
 ### Fixed

@@ -5,9 +5,12 @@ import getpass
 import time
 import socket
 import logging
+import sentry_sdk
+from sentry_sdk.integrations.asyncio import AsyncioIntegration
 from bleak.backends.device import BLEDevice
 from bleak import BleakScanner
 from px_python_shared import send_alert
+from px_device_identity import Device
 from bcms.api import BackendAPI
 from bcms.data_store import limit_iot_data_sample_rate
 from . import log as _log
@@ -39,9 +42,7 @@ from .bootstrap import (
 log = logging.getLogger(__name__)
 
 class BCMS:
-    backend_api = BackendAPI()
-    use_device_identity = False
-    application_identifier = None
+    backend_api: BackendAPI
     notify = False
     username = None
     sleep = BLUETOOTH_SCAN_INTERVAL
@@ -49,27 +50,20 @@ class BCMS:
 
     def __init__(
         self,
-        use_device_identity=False,
-        application_identifier=None,
+        application_identifier,
         notify=False,
         username=None,
         sleep=BLUETOOTH_SCAN_INTERVAL,
         sleep_data=DATA_SUBMISSION_INTERVAL,
     ):
-        self.use_device_identity = use_device_identity
-        self.application_identifier = application_identifier
+        self.backend_api = BackendAPI(application_identifier)
         self.notify = notify
         self.username = username
         self.sleep = sleep
         self.sleep_data = sleep_data
         
-        if self.use_device_identity:
-            try:
-                self.backend_api = BackendAPI()
-                self.backend_api.load(application_identifier)
-            except Exception as err:
-                log.error("Failed to load backend api. Is this device registered?: %s", err)
-                exit(1)
+        if application_identifier:
+            self.backend_api.ready_api()
                 
     async def start(self):
         def notify_callback(title: str, message: str, timeout: int = 5000):
@@ -195,8 +189,8 @@ class BCMS:
             registered_devices = devices_mem.get_registered()
 
             # Backend not loaded; Cannot submit data
-            if not self.backend_api.is_loaded:
-                log.info("=> [DEMO] No backend API loaded")
+            if self.backend_api.identifier is None:
+                log.info("=> [DEMO] No identifier set, thus no backend API loaded")
 
                 from_time = None
                 if last_submission and isinstance(last_submission, int):
@@ -299,7 +293,7 @@ class BCMS:
 
         def pairing_success_callback(address: str, name: str = None):
             log.debug("Pair success %s", address)
-            if self.backend_api.is_loaded:
+            if self.backend_api.identifier is not None:
                 try:
                     result = self.backend_api.create_iot_device_if_not_exists(address)
                     if result and result.id:
@@ -337,7 +331,7 @@ class BCMS:
     async def register_devices_loop(self):
         while True:
             log.debug("=> Registering devices")
-            if self.backend_api.is_loaded:
+            if self.backend_api.identifier is not None:
                 devices = devices_mem.get_approved_or_paired()
 
                 # sleep 2s, in case the device was just added, and another registration is ongoing
@@ -404,7 +398,6 @@ def main():
     notify = params["notify"]
     sleep = params["sleep"]
     sleep_data = params["sleep_data"]
-    use_device_identity = params["use_device_identity"]
     application_identifier = params["application_identifier"]
     debug = params["debug"]
 
@@ -413,9 +406,23 @@ def main():
 
     if debug:
         _log.set_debugging(log)
+    
+    # Try to get device identifier from device identity
+    sentry_device_identifier = 'Default'
+    if application_identifier:
+        device = Device()
+        sentry_device_identifier = device.properties.id
         
+    sentry_sdk.init(
+        dsn="https://b455e310e707036fc6ccf81fdc797934@sentry.pantherx.dev/28",
+        enable_tracing=True,
+        integrations=[
+            AsyncioIntegration(),
+        ],
+        server_name=sentry_device_identifier,
+    )
+
     bcms = BCMS(
-        use_device_identity=use_device_identity,
         application_identifier=application_identifier,
         notify=notify,
         username=username,
